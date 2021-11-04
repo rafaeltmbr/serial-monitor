@@ -13,14 +13,14 @@ export const Container = styled.div`
   display: flex;
 
   &[data-type="warn"] {
-    --icon-color: ${(props) => props.theme.colors.yellow};
+    --icon-color: ${(props) => props.theme.colors.warnIcon};
 
     color: ${(props) => props.theme.colors.warnText};
     background-color: ${(props) => props.theme.colors.warnBackground};
   }
 
   &[data-type="error"] {
-    --icon-color: ${(props) => props.theme.colors.red};
+    --icon-color: ${(props) => props.theme.colors.errorIcon};
 
     color: ${(props) => props.theme.colors.errorText};
     background-color: ${(props) => props.theme.colors.errorBackground};

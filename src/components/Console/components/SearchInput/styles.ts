@@ -6,7 +6,7 @@ export const Container = styled.div`
 
 export const Input = styled.input`
   width: 100%;
-  padding: 0.375rem 2.5rem 0.375rem 0.75rem;
+  padding: 0.375rem 4rem 0.375rem 0.75rem;
   background-color: ${(props) => props.theme.colors.consoleInput};
   border: none;
   border-radius: 0.25rem;
@@ -24,15 +24,31 @@ export const Input = styled.input`
   }
 `;
 
-export const IconContainer = styled.div`
+export const SearchIconContainer = styled.div`
   position: absolute;
-  right: 0;
+  right: 0.5rem;
   top: 0;
 
   font-size: 1.25rem;
   height: 2rem;
-  width: 2.5rem;
+  width: 1.5rem;
   color: ${(props) => props.theme.colors.icon};
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+export const ClearIconContainer = styled.div`
+  position: absolute;
+  right: 2rem;
+  top: 0;
+
+  font-size: 1.5rem;
+  height: 2rem;
+  width: 1.5rem;
+  color: ${(props) => props.theme.colors.icon};
+  cursor: pointer;
 
   display: flex;
   align-items: center;

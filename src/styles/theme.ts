@@ -23,6 +23,9 @@ const darkColors = {
   consoleInputPlaceholder: "#A8ABBD",
   consoleScrollbar: "#44475A",
   consoleScrollbarHover: "#53576E",
+  logIcon: "#56CCF2",
+  warnIcon: "#EBF393",
+  errorIcon: "#FF5555",
 };
 
 export const darkTheme = {

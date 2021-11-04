@@ -1,4 +1,4 @@
-const logTypes = <const>["log", "warn", "error", "command", "send"];
+export const logTypes = <const>["error", "warn", "log", "command", "send"];
 
 export type LogType = typeof logTypes[number];
 
@@ -8,3 +8,5 @@ export interface ILog {
   content: string;
   timestamp: Date;
 }
+
+export type ILogCountByType = Record<LogType, number>;

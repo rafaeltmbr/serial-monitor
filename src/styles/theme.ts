@@ -18,6 +18,11 @@ const darkColors = {
   warnBackground: "#45462F",
   errorBackground: "#502D2D",
   sendBackground: "#3D415C",
+  consoleHeader: "#292B38",
+  consoleInput: "#44475A",
+  consoleInputPlaceholder: "#A8ABBD",
+  consoleScrollbar: "#44475A",
+  consoleScrollbarHover: "#53576E",
 };
 
 export const darkTheme = {

@@ -24,6 +24,14 @@ const typeIcons: Record<LogType, IconType> = {
   send: IoMdSend,
 };
 
+const typeTitle: Record<LogType, string> = {
+  log: "Logs",
+  warn: "Warns",
+  error: "Errors",
+  command: "Commands",
+  send: "Sent",
+};
+
 export const LogTypeButton: React.FC<IProps> = ({
   type,
   count,
@@ -43,6 +51,7 @@ export const LogTypeButton: React.FC<IProps> = ({
       data-type={type}
       data-selected={!!selected}
       onClick={handleClick}
+      title={typeTitle[type]}
     >
       <Icon />
       <Count>{count}</Count>

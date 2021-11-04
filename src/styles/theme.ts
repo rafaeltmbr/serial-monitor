@@ -12,7 +12,7 @@ const darkColors = {
   page: "#373849",
   logArea: "#23242F",
   logText: "#D8DCE9",
-  warnText: "#EBEBAD",
+  warnText: "#F0F0C2",
   errorText: "#FFCECE",
   logBackground: "#2E2F3D",
   warnBackground: "#45462F",

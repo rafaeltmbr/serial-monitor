@@ -1,0 +1,28 @@
+const config = {
+  breakingPoints: {
+    mobile: 768,
+    smallDesktop: 1024,
+  },
+};
+
+const darkColors = {
+  icon: "#89A3F5",
+  yellow: "#F1FA8C",
+  red: "#FF5555",
+  page: "#373849",
+  logArea: "#23242F",
+  logText: "#D8DCE9",
+  warnText: "#EBEBAD",
+  errorText: "#FFCECE",
+  logBackground: "#2E2F3D",
+  warnBackground: "#45462F",
+  errorBackground: "#502D2D",
+  sendBackground: "#3D415C",
+};
+
+export const darkTheme = {
+  ...config,
+  colors: darkColors,
+};
+
+export type ITheme = typeof darkTheme;

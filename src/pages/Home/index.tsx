@@ -1,77 +1,112 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Console } from "../../components/Console";
+import { defaultBaudRate } from "../../config/baud";
 import { ILog } from "../../interfaces/Log/ILog";
+import { getSerialPort } from "../../util/getSerialPort";
+import { getSerialReader } from "../../util/getSerialReader";
 
 import { Container } from "./styles";
 
-const defaultLogs: ILog[] = [
-  {
-    id: 1,
-    type: "log",
-    content: "Temperature: 28°C    Humidity: 60%",
-    timestamp: new Date(),
-  },
-  {
-    id: 2,
-    type: "log",
-    content: "Temperature: 29°C    Humidity: 61%",
-    timestamp: new Date(),
-  },
-  {
-    id: 3,
-    type: "warn",
-    content:
-      "Something may be wrong. Temperature cannot be read properly. Checkout the hardware connections.",
-    timestamp: new Date(),
-  },
-  {
-    id: 4,
-    type: "log",
-    content: "Temperature: 28°C    Humidity: 60%",
-    timestamp: new Date(),
-  },
-  {
-    id: 5,
-    type: "error",
-    content: "Unable to read the temperature sensor.",
-    timestamp: new Date(),
-  },
-  {
-    id: 6,
-    type: "send",
-    content: "Turn fan on",
-    timestamp: new Date(),
-  },
-  {
-    id: 7,
-    type: "log",
-    content: "Temperature: 29°C    Humidity: 61%",
-    timestamp: new Date(),
-  },
-  {
-    id: 8,
-    type: "log",
-    content: "Temperature: 30°C    Humidity: 61%",
-    timestamp: new Date(),
-  },
-  {
-    id: 9,
-    type: "log",
-    content: "Temperature: 31°C    Humidity: 62%",
-    timestamp: new Date(),
-  },
-];
+interface IConnection {
+  port?: SerialPort;
+  reader?: ReadableStreamDefaultReader<Uint8Array>;
+  isConnected?: boolean;
+}
 
 export const Home: React.FC = () => {
-  const [logs, setLogs] = useState(defaultLogs);
+  const [logs, setLogs] = useState<ILog[]>([]);
+  const [baud, setBaud] = useState(defaultBaudRate);
+  const [readyToConnect, setReadyToConnect] = useState(false);
+  const [connection, setConnection] = useState<IConnection>({});
+
+  useEffect(() => {
+    const { port } = connection;
+    if (!port) return;
+
+    const HandleDisconnect = () => {
+      setReadyToConnect(false);
+      setConnection({});
+    };
+
+    port.addEventListener("disconnect", HandleDisconnect);
+
+    return () => port.removeEventListener("disconnect", HandleDisconnect);
+  }, [connection]);
 
   const handleClearLogs = () => {
     setLogs([]);
   };
 
+  const handleBaudRateChange = (value: number) => {
+    setBaud(value);
+  };
+
+  useEffect(() => {
+    let closed = false;
+
+    const connect = async () => {
+      try {
+        const port = await getSerialPort();
+        const reader = await getSerialReader(port, { baudRate: baud });
+
+        setConnection({ port, reader, isConnected: true });
+
+        let strBuffer = "";
+
+        while (true) {
+          if (closed) {
+            setConnection((d) => ({ ...d, isConnected: false }));
+            setReadyToConnect(false);
+            reader.releaseLock();
+            port.close();
+            return;
+          }
+
+          const { value } = await reader.read();
+
+          strBuffer += new TextDecoder().decode(value);
+
+          if (strBuffer.indexOf("\n") >= 0) {
+            const messages = strBuffer.split("\n");
+
+            messages.slice(0, -1).forEach((msg) => {
+              setLogs((d) => [
+                ...d,
+                {
+                  id: d.length + 1,
+                  content: msg,
+                  type: "log",
+                  timestamp: new Date(),
+                },
+              ]);
+            });
+
+            strBuffer = messages.pop() || "";
+          }
+        }
+      } catch (err) {
+        setReadyToConnect(false);
+        setConnection({});
+      }
+    };
+
+    if (readyToConnect) connect();
+
+    return () => {
+      closed = true;
+    };
+  }, [readyToConnect, baud]);
+
   return (
     <Container>
-      <Console logs={logs} onClearLogs={handleClearLogs} />
+      <Console
+        logs={logs}
+        baud={baud}
+        onBaudChange={handleBaudRateChange}
+        deviceInfo={connection.isConnected ? "Connected" : ""}
+        onClearLogs={handleClearLogs}
+        onConnectionRequestChange={setReadyToConnect}
+      />
     </Container>
   );
 };

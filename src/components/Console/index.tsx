@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { defaultBaudRate } from "../../config/baud";
 
 import { ILog, LogType } from "../../interfaces/Log/ILog";
 import { filterLogAndCount } from "../../util/filterLogAndCount";
@@ -13,28 +12,37 @@ import { Container, LogContainer } from "./styles";
 
 interface IProps {
   logs: ILog[];
+  baud: number;
+  deviceInfo: string;
   onClearLogs: () => void;
+  onBaudChange: (baud: number) => void;
+  onConnectionRequestChange: (status: boolean) => void;
 }
 
-export const Console: React.FC<IProps> = ({ logs, onClearLogs }) => {
+export const Console: React.FC<IProps> = ({
+  logs,
+  baud,
+  deviceInfo,
+  onClearLogs,
+  onBaudChange,
+  onConnectionRequestChange,
+}) => {
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<LogType | undefined>();
-  const [deviceInfo, setDeviceInfo] = useState("");
-  const [baud, setBaud] = useState(defaultBaudRate);
   const logsRef = useRef<HTMLUListElement>(null);
-
-  useEffect(() => {
-    const ref = logsRef.current;
-    if (!ref) return;
-
-    ref.scrollTo({ left: 0, top: ref.scrollHeight, behavior: "smooth" });
-  }, [search, selectedType]);
 
   const [filteredLogs, logTypesCount] = filterLogAndCount(
     logs,
     search,
     selectedType
   );
+
+  useEffect(() => {
+    const ref = logsRef.current;
+    if (!ref) return;
+
+    ref.scrollTo(0, ref.scrollHeight);
+  }, [filteredLogs]);
 
   const handleSearchClear = () => {
     setSearch("");
@@ -47,23 +55,13 @@ export const Console: React.FC<IProps> = ({ logs, onClearLogs }) => {
     onClearLogs();
   };
 
-  const handleConnectionRequestChange = (status: boolean) => {
-    setDeviceInfo(status ? "Arduino Uno R3 - COM4" : "");
-    console.log("connection request changed", status);
-  };
-
-  const handleBaudChange = (value: number) => {
-    setBaud(value);
-    console.log("baud change", value);
-  };
-
   return (
     <Container>
       <ManagementBar
         deviceInfo={deviceInfo}
-        onConnectionRequestChange={handleConnectionRequestChange}
+        onConnectionRequestChange={onConnectionRequestChange}
         baud={baud}
-        onBaudChange={handleBaudChange}
+        onBaudChange={onBaudChange}
       />
       <Header
         search={search}
@@ -88,7 +86,7 @@ export const Console: React.FC<IProps> = ({ logs, onClearLogs }) => {
           ))}
           <ConnectDeviceMessage
             show={!(search || selectedType) && !deviceInfo}
-            onConnectionRequest={() => handleConnectionRequestChange(true)}
+            onConnectionRequest={() => onConnectionRequestChange(true)}
           />
         </LogContainer>
       )}

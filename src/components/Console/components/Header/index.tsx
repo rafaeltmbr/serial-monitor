@@ -4,6 +4,7 @@ import {
   LogType,
   logTypes,
 } from "../../../../interfaces/Log/ILog";
+import { ClearButton } from "../ClearButton";
 import { LogTypeButton } from "../LogTypeButton";
 
 import { SearchInput } from "../SearchInput";
@@ -14,18 +15,22 @@ interface IProps extends HTMLAttributes<HTMLElement> {
   search: string;
   selectedType: LogType | undefined;
   logTypesCount: ILogCountByType;
+  showClearButton: boolean;
   onSearchChange: (value: string) => void;
   onSearchClear: () => void;
   onSelectedTypeChange: (type: LogType | undefined) => void;
+  onClearLogs: () => void;
 }
 
 export const Header: React.FC<IProps> = ({
   search,
-  onSearchChange,
-  logTypesCount,
   selectedType,
-  onSelectedTypeChange,
+  logTypesCount,
+  showClearButton,
+  onSearchChange,
   onSearchClear,
+  onSelectedTypeChange,
+  onClearLogs,
   ...rest
 }) => (
   <Container {...rest}>
@@ -45,5 +50,6 @@ export const Header: React.FC<IProps> = ({
         />
       ))}
     </LogTypesContainer>
+    {showClearButton ? <ClearButton onClick={onClearLogs} /> : null}
   </Container>
 );

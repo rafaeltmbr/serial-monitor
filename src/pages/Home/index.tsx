@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Console } from "../../components/Console";
 import { ILog } from "../../interfaces/Log/ILog";
 
 import { Container } from "./styles";
 
-const logs: ILog[] = [
+const defaultLogs: ILog[] = [
   {
     id: 1,
     type: "log",
@@ -63,9 +63,15 @@ const logs: ILog[] = [
 ];
 
 export const Home: React.FC = () => {
+  const [logs, setLogs] = useState(defaultLogs);
+
+  const handleClearLogs = () => {
+    setLogs([]);
+  };
+
   return (
     <Container>
-      <Console logs={logs} />
+      <Console logs={logs} onClearLogs={handleClearLogs} />
     </Container>
   );
 };

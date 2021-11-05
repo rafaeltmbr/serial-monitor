@@ -77,7 +77,7 @@ export const OptionsList = styled.ul`
 
 export const Option = styled.li`
   list-style: none;
-  padding: 0.25rem 1rem;
+  padding: 0.25rem 1rem 0.25rem 2rem;
   transition-duration: color var(--animation-duration);
   cursor: pointer;
 
@@ -90,17 +90,21 @@ export const Option = styled.li`
 `;
 
 export const OptionText = styled.span`
+  flex: 1;
   color: ${(props) => props.theme.colors.logText};
   font-size: 0.875rem;
   line-height: 1em;
-  margin-right: 1rem;
+  margin-right: 0.5rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 `;
 
 export const OptionIcon = styled.span`
-  font-size: 1rem;
+  font-size: 1.125rem;
   line-height: 1em;
   color: ${(props) => props.theme.colors.icon};
-  margin-right: 0.5rem;
 
   display: flex;
   align-items: center;

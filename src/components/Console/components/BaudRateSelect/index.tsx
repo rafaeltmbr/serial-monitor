@@ -50,10 +50,10 @@ export const BaudRateSelect: React.FC<IProps> = ({ baud, onBaudChange }) => {
           <OptionsList>
             {baudRates.map((rate) => (
               <Option key={rate} onClick={() => handleOptionClick(rate)}>
+                <OptionText>{rate}</OptionText>
                 <OptionIcon data-selected={rate === baud}>
                   <BsCheck2 />
                 </OptionIcon>
-                <OptionText>{rate}</OptionText>
               </Option>
             ))}
           </OptionsList>

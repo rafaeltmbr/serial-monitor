@@ -1,37 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Console } from "../../components/Console";
 import { defaultBaudRate } from "../../config/baud";
 import { ILog } from "../../interfaces/Log/ILog";
-import { getSerialPort } from "../../util/getSerialPort";
-import { getSerialReader } from "../../util/getSerialReader";
+import { SerialConnection } from "../../util/SerialConnection";
 
 import { Container } from "./styles";
-
-interface IConnection {
-  port?: SerialPort;
-  reader?: ReadableStreamDefaultReader<Uint8Array>;
-  isConnected?: boolean;
-}
 
 export const Home: React.FC = () => {
   const [logs, setLogs] = useState<ILog[]>([]);
   const [baud, setBaud] = useState(defaultBaudRate);
   const [readyToConnect, setReadyToConnect] = useState(false);
-  const [connection, setConnection] = useState<IConnection>({});
-
-  useEffect(() => {
-    const { port } = connection;
-    if (!port) return;
-
-    const HandleDisconnect = () => {
-      setReadyToConnect(false);
-      setConnection({});
-    };
-
-    port.addEventListener("disconnect", HandleDisconnect);
-
-    return () => port.removeEventListener("disconnect", HandleDisconnect);
-  }, [connection]);
+  const [isConnected, setIsConnected] = useState(false);
+  const serial = useMemo(() => new SerialConnection(), []);
 
   const handleClearLogs = () => {
     setLogs([]);
@@ -42,60 +22,38 @@ export const Home: React.FC = () => {
   };
 
   useEffect(() => {
-    let closed = false;
+    if (!readyToConnect) return;
 
-    const connect = async () => {
-      try {
-        const port = await getSerialPort();
-        const reader = await getSerialReader(port, { baudRate: baud });
+    serial.connect({ baudRate: baud });
+    setIsConnected(true);
 
-        setConnection({ port, reader, isConnected: true });
-
-        let strBuffer = "";
-
-        while (true) {
-          if (closed) {
-            setConnection((d) => ({ ...d, isConnected: false }));
-            setReadyToConnect(false);
-            reader.releaseLock();
-            port.close();
-            return;
-          }
-
-          const { value } = await reader.read();
-
-          strBuffer += new TextDecoder().decode(value);
-
-          if (strBuffer.indexOf("\n") >= 0) {
-            const messages = strBuffer.split("\n");
-
-            messages.slice(0, -1).forEach((msg) => {
-              setLogs((d) => [
-                ...d,
-                {
-                  id: d.length + 1,
-                  content: msg,
-                  type: "log",
-                  timestamp: new Date(),
-                },
-              ]);
-            });
-
-            strBuffer = messages.pop() || "";
-          }
-        }
-      } catch (err) {
-        setReadyToConnect(false);
-        setConnection({});
-      }
+    const handleNewLine = (line: string) => {
+      setLogs((d) => [
+        ...d,
+        {
+          id: d.length + 1,
+          type: "log",
+          content: line,
+          timestamp: new Date(),
+        },
+      ]);
     };
 
-    if (readyToConnect) connect();
+    const handleDisconnect = () => {
+      serial.disconnect();
+      setIsConnected(false);
+      setReadyToConnect(false);
+    };
+
+    serial.addListener("line", handleNewLine);
+    serial.addListener("disconnect", handleDisconnect);
 
     return () => {
-      closed = true;
+      handleDisconnect();
+      serial.removeListener("line", handleNewLine);
+      serial.removeListener("disconnect", handleDisconnect);
     };
-  }, [readyToConnect, baud]);
+  }, [serial, readyToConnect, baud]);
 
   return (
     <Container>
@@ -103,7 +61,7 @@ export const Home: React.FC = () => {
         logs={logs}
         baud={baud}
         onBaudChange={handleBaudRateChange}
-        deviceInfo={connection.isConnected ? "Connected" : ""}
+        deviceInfo={isConnected ? "Connected" : ""}
         onClearLogs={handleClearLogs}
         onConnectionRequestChange={setReadyToConnect}
       />

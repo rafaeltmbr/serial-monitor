@@ -18,6 +18,7 @@ const iconMapping: Record<LogType, IconType | null> = {
   error: MdCancel,
   command: null,
   send: null,
+  info: null,
 };
 
 export const Log: React.FC<IProps> = ({

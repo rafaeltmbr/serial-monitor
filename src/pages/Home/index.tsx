@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Console } from "../../components/Console";
 import { defaultBaudRate } from "../../config/baud";
 import { ILog } from "../../interfaces/Log/ILog";
+import { getRandomId } from "../../util/getRandomId";
 import { SerialConnection } from "../../util/SerialConnection";
 
 import { Container } from "./styles";
@@ -25,13 +26,22 @@ export const Home: React.FC = () => {
     if (!readyToConnect) return;
 
     serial.connect({ baudRate: baud });
+    setLogs((d) => [
+      ...d,
+      {
+        id: getRandomId(),
+        content: "Device connected",
+        type: "info",
+        timestamp: new Date(),
+      },
+    ]);
     setIsConnected(true);
 
     const handleNewLine = (line: string) => {
       setLogs((d) => [
         ...d,
         {
-          id: d.length + 1,
+          id: getRandomId(),
           type: "log",
           content: line,
           timestamp: new Date(),
@@ -41,6 +51,15 @@ export const Home: React.FC = () => {
 
     const handleDisconnect = () => {
       serial.disconnect();
+      setLogs((d) => [
+        ...d,
+        {
+          id: getRandomId(),
+          content: "Device disconnected",
+          type: "info",
+          timestamp: new Date(),
+        },
+      ]);
       setIsConnected(false);
       setReadyToConnect(false);
     };

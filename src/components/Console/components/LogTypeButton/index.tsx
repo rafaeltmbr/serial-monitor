@@ -16,12 +16,13 @@ interface IProps {
   onSelectChange: (type: LogType | undefined) => void;
 }
 
-const typeIcons: Record<LogType, IconType> = {
+const typeIcons: Record<LogType, IconType | null> = {
   log: FaReceipt,
   warn: AiFillWarning,
   error: MdCancel,
   command: FaCode,
   send: IoMdSend,
+  info: null,
 };
 
 const typeTitle: Record<LogType, string> = {
@@ -30,6 +31,7 @@ const typeTitle: Record<LogType, string> = {
   error: "Errors",
   command: "Commands",
   send: "Sent",
+  info: "",
 };
 
 export const LogTypeButton: React.FC<IProps> = ({
@@ -38,9 +40,9 @@ export const LogTypeButton: React.FC<IProps> = ({
   selected,
   onSelectChange,
 }) => {
-  if (!count && !selected) return null;
-
   const Icon = typeIcons[type];
+
+  if ((!count && !selected) || !Icon) return null;
 
   const handleClick = () => {
     onSelectChange(selected ? undefined : type);

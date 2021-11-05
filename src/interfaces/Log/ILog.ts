@@ -1,4 +1,11 @@
-export const logTypes = <const>["error", "warn", "log", "command", "send"];
+export const logTypes = <const>[
+  "error",
+  "warn",
+  "log",
+  "command",
+  "send",
+  "info",
+];
 
 export type LogType = typeof logTypes[number];
 

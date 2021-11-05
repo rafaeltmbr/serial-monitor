@@ -18,20 +18,21 @@ export const Container = styled.div`
 `;
 
 export const Icon = styled.div`
+  display: none;
   font-size: 2.25rem;
   color: ${(props) => props.theme.colors.icon};
 `;
 
 export const Message = styled.div`
   margin-top: 0.5rem;
-  font-size: 1rem;
+  font-size: 1.125rem;
   color: ${(props) => props.theme.colors.logText};
 `;
 
 export const Button = styled.button`
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   background-color: ${(props) => props.theme.colors.consoleInput};
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 0.25rem;
   cursor: pointer;
@@ -42,7 +43,7 @@ export const Button = styled.button`
 `;
 
 export const ButtonText = styled.span`
-  margin-right: 0.25rem;
+  margin-right: 0.375rem;
   font-size: 1rem;
   color: ${(props) => props.theme.colors.logText};
 

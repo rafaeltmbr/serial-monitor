@@ -32,6 +32,16 @@ export const Container = styled.div`
     margin-left: 2rem;
   }
 
+  &[data-type="info"] {
+    background-color: transparent;
+    margin: 0 2rem;
+    text-align: center;
+
+    & > :last-child {
+      align-self: center;
+    }
+  }
+
   &:nth-child(n + 2) {
     margin-top: 0.1875rem;
 

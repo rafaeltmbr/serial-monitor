@@ -11,8 +11,12 @@ export const Container = styled.div`
   flex-direction: column;
 `;
 
-export const LogContainer = styled.div`
+export const LogContainer = styled.ul`
   padding: 1rem 0.5rem;
   flex: 1;
   overflow-y: auto;
+
+  &[data-child-full-size="true"] {
+    display: flex;
+  }
 `;

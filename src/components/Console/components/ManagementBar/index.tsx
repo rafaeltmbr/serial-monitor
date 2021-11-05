@@ -5,7 +5,6 @@ import { ConnectionButton } from "../ConnectionButton";
 import { Container, DeviceInfo } from "./styles";
 
 interface IProps {
-  isConnected: boolean;
   deviceInfo: string;
   baud: number;
   onConnectionRequestChange: (isConnected: boolean) => void;
@@ -14,7 +13,6 @@ interface IProps {
 
 export const ManagementBar: React.FC<IProps> = ({
   deviceInfo,
-  isConnected,
   baud,
   onConnectionRequestChange,
   onBaudChange,
@@ -22,7 +20,7 @@ export const ManagementBar: React.FC<IProps> = ({
   return (
     <Container>
       <ConnectionButton
-        isConnected={isConnected}
+        isConnected={!!deviceInfo}
         onConnectionRequestChange={onConnectionRequestChange}
       />
       <DeviceInfo>{deviceInfo}</DeviceInfo>

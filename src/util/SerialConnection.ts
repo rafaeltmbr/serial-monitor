@@ -1,16 +1,23 @@
 import { EventEmitter } from "events";
 
+export const serialConnectionStatus = <const>[
+  "disconnected",
+  "connected",
+  "reading",
+  "stop_reading",
+];
+
+export type SerialConnectionStatus = typeof serialConnectionStatus[number];
+
 export class SerialConnection extends EventEmitter {
   private port: SerialPort | null;
-  private status: "disconnected" | "disconnecting" | "reading";
-  private portDisconnectHandler: () => void;
+  private status: SerialConnectionStatus;
 
   constructor() {
     super();
 
     this.port = null;
     this.status = "disconnected";
-    this.portDisconnectHandler = this.handlePortDisconnect.bind(this);
   }
 
   public async connect(options: SerialOptions) {
@@ -20,12 +27,12 @@ export class SerialConnection extends EventEmitter {
   }
 
   public async disconnect() {
-    if (this.status === "disconnected") return;
+    if (this.status === "disconnected" || this.status === "connected") return;
 
     const promise = new Promise<void>((resolve, reject) => {
       if (!this.port) return resolve();
 
-      this.status = "disconnecting";
+      this.status = "stop_reading";
 
       this.addListener("disconnect", resolve);
 
@@ -39,20 +46,16 @@ export class SerialConnection extends EventEmitter {
     if (this.status === "reading") {
       await this.disconnect();
       await this.port?.close();
-      this.port?.removeEventListener("disconnect", this.portDisconnectHandler);
-      this.status = "disconnected";
+      this.status = "connected";
 
       return;
     }
 
     if (this.port) {
       await this.port.close();
-      this.port?.removeEventListener("disconnect", this.portDisconnectHandler);
     }
 
     this.port = await this.getSerialPort();
-
-    this.port.addEventListener("disconnect", this.portDisconnectHandler);
   }
 
   private async getSerialPort() {
@@ -100,17 +103,13 @@ export class SerialConnection extends EventEmitter {
       }
 
       reader.releaseLock();
+      this.status = "connected";
     } catch (err) {
       this.emit("error", err);
-    } finally {
       this.status = "disconnected";
-      this.emit("disconnect");
+      this.port = null;
+    } finally {
+      this.emit("disconnect", this.status);
     }
-  }
-
-  private handlePortDisconnect() {
-    this.port = null;
-    this.status = "disconnected";
-    this.emit("disconnect");
   }
 }

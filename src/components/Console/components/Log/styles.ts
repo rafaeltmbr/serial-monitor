@@ -61,11 +61,12 @@ export const IConContainer = styled.div`
 `;
 
 export const Content = styled.pre`
+  overflow: hidden;
   flex: 1;
   font-size: 0.875rem;
-  white-space: pre-wrap;
   letter-spacing: 0.75px;
   line-height: 1.25rem;
+  white-space: break-spaces;
 `;
 
 export const Timestamp = styled.div`

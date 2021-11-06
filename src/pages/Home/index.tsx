@@ -3,7 +3,10 @@ import { Console } from "../../components/Console";
 import { defaultBaudRate } from "../../config/baud";
 import { ILog } from "../../interfaces/Log/ILog";
 import { getRandomId } from "../../util/getRandomId";
-import { SerialConnection } from "../../util/SerialConnection";
+import {
+  SerialConnection,
+  SerialConnectionStatus,
+} from "../../util/SerialConnection";
 
 import { Container } from "./styles";
 
@@ -45,27 +48,33 @@ export const Home: React.FC = () => {
     ]);
   }, []);
 
-  const handleSerialDisconnect = useCallback(async () => {
-    const disconnectLog: ILog = {
-      id: getRandomId(),
-      content: "Device disconnected",
-      type: "info",
-      timestamp: new Date(),
-    };
+  const handleSerialDisconnect = useCallback(
+    async (status: SerialConnectionStatus) => {
+      const disconnectLog: ILog = {
+        id: getRandomId(),
+        content: `Device ${
+          status === "disconnected" ? "disconnected" : "paused"
+        }`,
+        type: "info",
+        timestamp: new Date(),
+      };
 
-    let chunk: ILog | null;
+      let chunk: ILog | null;
 
-    setLogChunk((d) => {
-      chunk = d;
-      return null;
-    });
+      setLogChunk((d) => {
+        chunk = d;
+        return null;
+      });
 
-    setLogs((d) =>
-      chunk ? [...d, chunk, disconnectLog] : [...d, disconnectLog]
-    );
-    setIsConnected(false);
-    setReadyToConnect(false);
-  }, []);
+      setLogs((d) =>
+        chunk ? [...d, chunk, disconnectLog] : [...d, disconnectLog]
+      );
+      setIsConnected(false);
+
+      if (status === "disconnected") setReadyToConnect(false);
+    },
+    []
+  );
 
   useEffect(() => {
     serial.addListener("chunk", handleSerialChunk);

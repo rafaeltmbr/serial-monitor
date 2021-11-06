@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Console } from "../../components/Console";
 import { defaultBaudRate } from "../../config/baud";
 import { ILog } from "../../interfaces/Log/ILog";
@@ -9,6 +9,7 @@ import { Container } from "./styles";
 
 export const Home: React.FC = () => {
   const [logs, setLogs] = useState<ILog[]>([]);
+  const [logChunk, setLogChunk] = useState<ILog | null>(null);
   const [baud, setBaud] = useState(defaultBaudRate);
   const [readyToConnect, setReadyToConnect] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -22,62 +23,89 @@ export const Home: React.FC = () => {
     setBaud(value);
   };
 
-  useEffect(() => {
-    if (!readyToConnect) return;
+  const handleSerialChunk = useCallback((chunk: string) => {
+    setLogChunk({
+      id: getRandomId(),
+      type: "log",
+      content: chunk,
+      timestamp: new Date(),
+    });
+  }, []);
 
-    serial.connect({ baudRate: baud });
+  const handleSerialLine = useCallback((line: string) => {
+    setLogChunk(null);
     setLogs((d) => [
       ...d,
       {
         id: getRandomId(),
-        content: "Device connected",
-        type: "info",
+        type: "log",
+        content: line,
         timestamp: new Date(),
       },
     ]);
-    setIsConnected(true);
+  }, []);
 
-    const handleNewLine = (line: string) => {
-      setLogs((d) => [
-        ...d,
-        {
-          id: getRandomId(),
-          type: "log",
-          content: line,
-          timestamp: new Date(),
-        },
-      ]);
+  const handleSerialDisconnect = useCallback(async () => {
+    const disconnectLog: ILog = {
+      id: getRandomId(),
+      content: "Device disconnected",
+      type: "info",
+      timestamp: new Date(),
     };
 
-    const handleDisconnect = () => {
-      serial.disconnect();
+    let chunk: ILog | null;
+
+    setLogChunk((d) => {
+      chunk = d;
+      return null;
+    });
+
+    setLogs((d) =>
+      chunk ? [...d, chunk, disconnectLog] : [...d, disconnectLog]
+    );
+    setIsConnected(false);
+    setReadyToConnect(false);
+  }, []);
+
+  useEffect(() => {
+    serial.addListener("chunk", handleSerialChunk);
+    serial.addListener("line", handleSerialLine);
+    serial.addListener("disconnect", handleSerialDisconnect);
+
+    return () => {
+      serial.removeListener("chunk", handleSerialChunk);
+      serial.removeListener("line", handleSerialLine);
+      serial.removeListener("disconnect", handleSerialDisconnect);
+    };
+  }, [handleSerialChunk, handleSerialLine, handleSerialDisconnect, serial]);
+
+  useEffect(() => {
+    if (!readyToConnect) return;
+
+    serial.connect({ baudRate: baud }).then(() => {
       setLogs((d) => [
         ...d,
         {
           id: getRandomId(),
-          content: "Device disconnected",
+          content: "Device connected",
           type: "info",
           timestamp: new Date(),
         },
       ]);
-      setIsConnected(false);
-      setReadyToConnect(false);
-    };
+      setIsConnected(true);
+    });
+  }, [readyToConnect, baud, serial]);
 
-    serial.addListener("line", handleNewLine);
-    serial.addListener("disconnect", handleDisconnect);
+  useEffect(() => {
+    if (readyToConnect) return;
 
-    return () => {
-      handleDisconnect();
-      serial.removeListener("line", handleNewLine);
-      serial.removeListener("disconnect", handleDisconnect);
-    };
-  }, [serial, readyToConnect, baud]);
+    serial.disconnect();
+  }, [readyToConnect, serial]);
 
   return (
     <Container>
       <Console
-        logs={logs}
+        logs={logChunk ? [...logs, logChunk] : logs}
         baud={baud}
         onBaudChange={handleBaudRateChange}
         deviceInfo={isConnected ? "Connected" : ""}

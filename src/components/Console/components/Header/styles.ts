@@ -10,6 +10,9 @@ export const Container = styled.div`
     "types clear";
   grid-template-columns: 1fr auto;
   row-gap: 0.5rem;
+
+  box-shadow: 0 0.5rem 0.75rem ${(props) => props.theme.colors.logArea};
+  z-index: 2;
 `;
 
 export const LogTypesContainer = styled.div`

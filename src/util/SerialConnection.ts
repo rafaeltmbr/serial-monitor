@@ -28,7 +28,7 @@ export class SerialConnection extends EventEmitter {
 
     this.reader = await this.getSerialReader(options);
 
-    this.handleSerialReading(options);
+    this.handleSerialReading();
 
     this.emit("connect", reused);
   }
@@ -94,12 +94,13 @@ export class SerialConnection extends EventEmitter {
     if (this.port) await this.port.close();
 
     this.port = await this.getSerialPort();
+    this.status = "connected";
 
     return false;
   }
 
   private async getSerialPort() {
-    if (!navigator.serial) throw new Error("Serial API not supported!");
+    if (!navigator.serial) throw new Error("Serial API not supported");
 
     return await navigator.serial.requestPort();
   }
@@ -112,7 +113,9 @@ export class SerialConnection extends EventEmitter {
 
       const reader = this.port.readable?.getReader();
 
-      if (!reader) throw new Error("Device can' be read");
+      if (!reader) throw new Error("Device can't be read");
+
+      this.status = "opened";
 
       return reader;
     } catch (err) {
@@ -121,13 +124,11 @@ export class SerialConnection extends EventEmitter {
     }
   }
 
-  private async handleSerialReading(options: SerialOptions) {
+  private async handleSerialReading() {
     try {
-      if (!this.port) throw new Error("Attempt to read an nonexistent port");
+      if (!this.port || !this.reader)
+        throw new Error("Unable to read the serial port");
 
-      if (!this.reader) throw new Error("Unable to open a read stream");
-
-      this.status = "opened";
       let strBuffer = "";
 
       while (this.status === "opened") {

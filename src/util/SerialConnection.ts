@@ -47,9 +47,19 @@ export class SerialConnection extends EventEmitter {
 
       this.status = disconnect ? "disconnecting" : "closing";
 
-      this.addListener("disconnect", resolve);
+      const handleDisconnect = () => {
+        this.removeListener("disconnect", handleDisconnect);
+        resolve();
+      };
 
-      this.addListener("error", reject);
+      this.addListener("disconnect", handleDisconnect);
+
+      const handleError = (error: Error) => {
+        this.removeListener("error", handleError);
+        reject(error);
+      };
+
+      this.addListener("error", handleError);
     });
 
     return promise;

@@ -113,7 +113,25 @@ export const Home: React.FC = () => {
   useEffect(() => {
     if (!readyToConnect) return;
 
-    serial.connect({ baudRate: baud }).then(() => {});
+    const connect = async () => {
+      try {
+        await serial.connect({ baudRate: baud });
+      } catch (err: any) {
+        setLogs((d) => [
+          ...d,
+          {
+            id: getRandomId(),
+            content: err.message,
+            type: "info",
+            timestamp: new Date(),
+          },
+        ]);
+
+        setReadyToConnect(false);
+      }
+    };
+
+    connect();
   }, [readyToConnect, baud, serial]);
 
   useEffect(() => {

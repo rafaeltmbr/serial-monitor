@@ -12,17 +12,21 @@ export type SerialConnectionStatus = typeof serialConnectionStatus[number];
 
 export class SerialConnection extends EventEmitter {
   private port: SerialPort | null;
+  private reader: ReadableStreamDefaultReader<Uint8Array> | null;
   private status: SerialConnectionStatus;
 
   constructor() {
     super();
 
     this.port = null;
+    this.reader = null;
     this.status = "disconnected";
   }
 
   public async connect(options: SerialOptions) {
     const reused = await this.createOrResetConnection();
+
+    this.reader = await this.getSerialReader(options);
 
     this.handleSerialReading(options);
 
@@ -31,6 +35,12 @@ export class SerialConnection extends EventEmitter {
 
   public async disconnect() {
     await this.stopReading(true);
+  }
+
+  private resetInternalState() {
+    this.port = null;
+    this.reader = null;
+    this.status = "disconnected";
   }
 
   private async stopReading(disconnect?: boolean) {
@@ -69,8 +79,7 @@ export class SerialConnection extends EventEmitter {
     if (this.status === "disconnected" || !this.port) return;
 
     await this.port?.close();
-    this.port = null;
-    this.status = "disconnected";
+    this.resetInternalState();
   }
 
   private async createOrResetConnection() {
@@ -96,29 +105,33 @@ export class SerialConnection extends EventEmitter {
   }
 
   private async getSerialReader(options: SerialOptions) {
-    if (!this.port) return null;
+    try {
+      if (!this.port) return null;
 
-    await this.port.open(options);
+      await this.port.open(options);
 
-    const reader = this.port.readable?.getReader();
+      const reader = this.port.readable?.getReader();
 
-    if (!reader) throw new Error("Device can' be read");
+      if (!reader) throw new Error("Device can' be read");
 
-    return reader;
+      return reader;
+    } catch (err) {
+      this.resetInternalState();
+      throw err;
+    }
   }
 
   private async handleSerialReading(options: SerialOptions) {
     try {
       if (!this.port) throw new Error("Attempt to read an nonexistent port");
 
-      const reader = await this.getSerialReader(options);
-      if (!reader) throw new Error("Unable to open a read stream");
+      if (!this.reader) throw new Error("Unable to open a read stream");
 
       this.status = "opened";
       let strBuffer = "";
 
       while (this.status === "opened") {
-        const { value } = await reader.read();
+        const { value } = await this.reader.read();
 
         strBuffer += new TextDecoder().decode(value);
 
@@ -133,10 +146,9 @@ export class SerialConnection extends EventEmitter {
         }
       }
 
-      reader.releaseLock();
+      this.reader.releaseLock();
     } catch (err) {
-      this.status = "disconnected";
-      this.port = null;
+      this.resetInternalState();
       this.emit("error", err);
     } finally {
       if (this.status === "closing") this.status = "connected";

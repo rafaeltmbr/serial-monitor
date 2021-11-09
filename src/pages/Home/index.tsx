@@ -48,12 +48,26 @@ export const Home: React.FC = () => {
     ]);
   }, []);
 
+  const handleSerialConnect = useCallback((reused: boolean) => {
+    setLogs((d) => [
+      ...d,
+      {
+        id: getRandomId(),
+        content: `Device ${reused ? "port reopened" : "connected"}`,
+        type: "info",
+        timestamp: new Date(),
+      },
+    ]);
+
+    setIsConnected(true);
+  }, []);
+
   const handleSerialDisconnect = useCallback(
     async (status: SerialConnectionStatus) => {
       const disconnectLog: ILog = {
         id: getRandomId(),
         content: `Device ${
-          status === "disconnected" ? "disconnected" : "paused"
+          status === "disconnected" ? "disconnected" : "port closed"
         }`,
         type: "info",
         timestamp: new Date(),
@@ -79,30 +93,27 @@ export const Home: React.FC = () => {
   useEffect(() => {
     serial.addListener("chunk", handleSerialChunk);
     serial.addListener("line", handleSerialLine);
+    serial.addListener("connect", handleSerialConnect);
     serial.addListener("disconnect", handleSerialDisconnect);
 
     return () => {
       serial.removeListener("chunk", handleSerialChunk);
       serial.removeListener("line", handleSerialLine);
+      serial.removeListener("connect", handleSerialConnect);
       serial.removeListener("disconnect", handleSerialDisconnect);
     };
-  }, [handleSerialChunk, handleSerialLine, handleSerialDisconnect, serial]);
+  }, [
+    handleSerialChunk,
+    handleSerialLine,
+    handleSerialConnect,
+    handleSerialDisconnect,
+    serial,
+  ]);
 
   useEffect(() => {
     if (!readyToConnect) return;
 
-    serial.connect({ baudRate: baud }).then(() => {
-      setLogs((d) => [
-        ...d,
-        {
-          id: getRandomId(),
-          content: "Device connected",
-          type: "info",
-          timestamp: new Date(),
-        },
-      ]);
-      setIsConnected(true);
-    });
+    serial.connect({ baudRate: baud }).then(() => {});
   }, [readyToConnect, baud, serial]);
 
   useEffect(() => {

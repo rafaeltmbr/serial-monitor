@@ -2,9 +2,10 @@ import { EventEmitter } from "events";
 
 export const serialConnectionStatus = <const>[
   "disconnected",
-  "connected",
-  "reading",
-  "stop_reading",
+  "connected", // granted access
+  "opened",
+  "closing",
+  "disconnecting",
 ];
 
 export type SerialConnectionStatus = typeof serialConnectionStatus[number];
@@ -21,18 +22,30 @@ export class SerialConnection extends EventEmitter {
   }
 
   public async connect(options: SerialOptions) {
-    await this.createOrReuseSerialPort();
+    const reused = await this.createOrResetConnection();
 
     this.handleSerialReading(options);
+
+    this.emit("connect", reused);
   }
 
   public async disconnect() {
-    if (this.status === "disconnected" || this.status === "connected") return;
+    await this.stopReading(true);
+  }
+
+  private async stopReading(disconnect?: boolean) {
+    if (
+      this.status === "disconnected" ||
+      (this.status === "connected" && !disconnect)
+    )
+      return;
+
+    if (this.status === "connected") return await this.closeSerialPort();
 
     const promise = new Promise<void>((resolve, reject) => {
       if (!this.port) return resolve();
 
-      this.status = "stop_reading";
+      this.status = disconnect ? "disconnecting" : "closing";
 
       this.addListener("disconnect", resolve);
 
@@ -42,20 +55,28 @@ export class SerialConnection extends EventEmitter {
     return promise;
   }
 
-  private async createOrReuseSerialPort() {
-    if (this.status === "reading") {
-      await this.disconnect();
+  private async closeSerialPort() {
+    if (this.status === "disconnected" || !this.port) return;
+
+    await this.port?.close();
+    this.port = null;
+    this.status = "disconnected";
+  }
+
+  private async createOrResetConnection() {
+    if (this.status === "opened") {
+      await this.stopReading();
       await this.port?.close();
       this.status = "connected";
 
-      return;
+      return true;
     }
 
-    if (this.port) {
-      await this.port.close();
-    }
+    if (this.port) await this.port.close();
 
     this.port = await this.getSerialPort();
+
+    return false;
   }
 
   private async getSerialPort() {
@@ -83,10 +104,10 @@ export class SerialConnection extends EventEmitter {
       const reader = await this.getSerialReader(options);
       if (!reader) throw new Error("Unable to open a read stream");
 
-      this.status = "reading";
+      this.status = "opened";
       let strBuffer = "";
 
-      while (this.status === "reading") {
+      while (this.status === "opened") {
         const { value } = await reader.read();
 
         strBuffer += new TextDecoder().decode(value);
@@ -103,12 +124,14 @@ export class SerialConnection extends EventEmitter {
       }
 
       reader.releaseLock();
-      this.status = "connected";
     } catch (err) {
-      this.emit("error", err);
       this.status = "disconnected";
       this.port = null;
+      this.emit("error", err);
     } finally {
+      if (this.status === "closing") this.status = "connected";
+      else if (this.status === "disconnecting") await this.closeSerialPort();
+
       this.emit("disconnect", this.status);
     }
   }

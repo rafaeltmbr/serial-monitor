@@ -9,6 +9,15 @@ export const logTypes = <const>[
 
 export type LogType = typeof logTypes[number];
 
+export const logTypeCategoryName: Record<LogType, string> = {
+  log: "Logs",
+  warn: "Warns",
+  error: "Errors",
+  command: "Commands",
+  send: "Sent",
+  info: "",
+};
+
 export interface ILog {
   id: number;
   type: LogType;

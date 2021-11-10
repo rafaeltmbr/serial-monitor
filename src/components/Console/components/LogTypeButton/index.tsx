@@ -5,7 +5,7 @@ import { FaCode, FaReceipt } from "react-icons/fa";
 import { MdCancel } from "react-icons/md";
 import { IoMdSend } from "react-icons/io";
 
-import { LogType } from "../../../../interfaces/Log/ILog";
+import { LogType, logTypeCategoryName } from "../../../../interfaces/Log/ILog";
 
 import { Container, Count } from "./styles";
 
@@ -23,15 +23,6 @@ const typeIcons: Record<LogType, IconType | null> = {
   command: FaCode,
   send: IoMdSend,
   info: null,
-};
-
-const typeTitle: Record<LogType, string> = {
-  log: "Logs",
-  warn: "Warns",
-  error: "Errors",
-  command: "Commands",
-  send: "Sent",
-  info: "",
 };
 
 export const LogTypeButton: React.FC<IProps> = ({
@@ -53,7 +44,7 @@ export const LogTypeButton: React.FC<IProps> = ({
       data-type={type}
       data-selected={!!selected}
       onClick={handleClick}
-      title={typeTitle[type]}
+      title={logTypeCategoryName[type]}
     >
       <Icon />
       <Count>{count}</Count>

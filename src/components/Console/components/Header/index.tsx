@@ -8,6 +8,7 @@ import { ClearButton } from "../ClearButton";
 import { LogTypeButton } from "../LogTypeButton";
 
 import { SearchInput } from "../SearchInput";
+import { SearchMessage } from "../SearchMessage";
 
 import { LogTypesContainer, Container } from "./styles";
 
@@ -51,5 +52,8 @@ export const Header: React.FC<IProps> = ({
       ))}
     </LogTypesContainer>
     {showClearButton ? <ClearButton onClick={onClearLogs} /> : null}
+    {search || selectedType ? (
+      <SearchMessage search={search} selectedType={selectedType} />
+    ) : null}
   </Container>
 );

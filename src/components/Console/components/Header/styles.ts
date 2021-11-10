@@ -7,7 +7,8 @@ export const Container = styled.div`
   display: grid;
   grid-template-areas:
     "search search"
-    "types clear";
+    "types clear"
+    "message message";
   grid-template-columns: 1fr auto;
   row-gap: 0.5rem;
 

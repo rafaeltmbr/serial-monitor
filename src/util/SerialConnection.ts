@@ -52,27 +52,9 @@ export class SerialConnection extends EventEmitter {
 
     if (this.status === "connected") return await this.closeSerialPort();
 
-    const promise = new Promise<void>((resolve, reject) => {
-      if (!this.port) return resolve();
+    this.status = disconnect ? "disconnecting" : "closing";
 
-      this.status = disconnect ? "disconnecting" : "closing";
-
-      const handleDisconnect = () => {
-        this.removeListener("disconnect", handleDisconnect);
-        resolve();
-      };
-
-      this.addListener("disconnect", handleDisconnect);
-
-      const handleError = (error: Error) => {
-        this.removeListener("error", handleError);
-        reject(error);
-      };
-
-      this.addListener("error", handleError);
-    });
-
-    return promise;
+    await this.reader?.cancel();
   }
 
   private async closeSerialPort() {
@@ -136,6 +118,8 @@ export class SerialConnection extends EventEmitter {
 
         strBuffer += new TextDecoder().decode(value);
 
+        if (!strBuffer) continue;
+
         const messages = strBuffer.split("\n");
 
         this.emit("chunk", messages[0]);
@@ -148,9 +132,8 @@ export class SerialConnection extends EventEmitter {
       }
 
       this.reader.releaseLock();
-    } catch (err) {
+    } catch {
       this.resetInternalState();
-      this.emit("error", err);
     } finally {
       if (this.status === "closing") this.status = "connected";
       else if (this.status === "disconnecting") await this.closeSerialPort();

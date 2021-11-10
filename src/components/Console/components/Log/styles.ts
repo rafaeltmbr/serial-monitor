@@ -35,7 +35,6 @@ export const Container = styled.div`
   &[data-type="info"] {
     background-color: transparent;
     margin: 0 2rem;
-    text-align: center;
 
     & > :last-child {
       align-self: center;

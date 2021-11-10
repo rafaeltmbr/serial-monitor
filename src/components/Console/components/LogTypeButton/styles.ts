@@ -1,6 +1,7 @@
 import styled from "styled-components";
 
 export const Container = styled.div`
+  margin-top: 0.5rem;
   background-color: ${(props) => props.theme.colors.consoleInput};
   border-radius: 0.25rem;
   padding: 0.25rem 0.5rem;

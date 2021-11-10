@@ -24,6 +24,7 @@ export const Icon = styled.div`
 `;
 
 export const Message = styled.div`
+  text-align: center;
   margin-top: 0.5rem;
   font-size: 1.125rem;
   color: ${(props) => props.theme.colors.logText};

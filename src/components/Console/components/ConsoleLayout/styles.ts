@@ -1,11 +1,11 @@
 import styled from "styled-components";
 
 export const Container = styled.div`
-  max-width: 600px;
-  background-color: ${(props) => props.theme.colors.logArea};
-  margin-left: auto;
   height: 100%;
+  width: 100%;
+  max-width: 600px;
   overflow: hidden;
+  background-color: ${(props) => props.theme.colors.logArea};
 
   display: flex;
   flex-direction: column;

@@ -1,95 +1,151 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
+import { defaultBaudRate } from "../../config/baud";
+import { ILog } from "../../interfaces/Log/ILog";
+import { getRandomId } from "../../util/getRandomId";
+import {
+  SerialConnection,
+  SerialConnectionStatus,
+} from "../../util/SerialConnection";
 
-import { ILog, LogType } from "../../interfaces/Log/ILog";
-import { filterLogAndCount } from "../../util/filterLogAndCount";
-import { ConnectDeviceMessage } from "./components/ConnectDeviceMessage";
-import { Header } from "./components/Header";
-import { Log } from "./components/Log";
-import { ManagementBar } from "./components/ManagementBar";
-import { NoResultsMessage } from "./components/NoResultsMessage";
+export const Console: React.FC = () => {
+  const [logs, setLogs] = useState<ILog[]>([]);
+  const [logChunk, setLogChunk] = useState<ILog | null>(null);
+  const [baud, setBaud] = useState(defaultBaudRate);
+  const [readyToConnect, setReadyToConnect] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const serial = useMemo(() => new SerialConnection(), []);
 
-import { Container, LogContainer } from "./styles";
+  const handleClearLogs = () => {
+    setLogs([]);
+  };
 
-interface IProps {
-  logs: ILog[];
-  baud: number;
-  deviceInfo: string;
-  onClearLogs: () => void;
-  onBaudChange: (baud: number) => void;
-  onConnectionRequestChange: (status: boolean) => void;
-}
+  const handleBaudRateChange = (value: number) => {
+    setBaud(value);
+  };
 
-export const Console: React.FC<IProps> = ({
-  logs,
-  baud,
-  deviceInfo,
-  onClearLogs,
-  onBaudChange,
-  onConnectionRequestChange,
-}) => {
-  const [search, setSearch] = useState("");
-  const [selectedType, setSelectedType] = useState<LogType | undefined>();
-  const logsRef = useRef<HTMLUListElement>(null);
+  const handleSerialChunk = useCallback((chunk: string) => {
+    setLogChunk({
+      id: getRandomId(),
+      type: "log",
+      content: chunk,
+      timestamp: new Date(),
+    });
+  }, []);
 
-  const [filteredLogs, logTypesCount] = filterLogAndCount(
-    logs,
-    search,
-    selectedType
+  const handleSerialLine = useCallback((line: string) => {
+    setLogChunk(null);
+    setLogs((d) => [
+      ...d,
+      {
+        id: getRandomId(),
+        type: "log",
+        content: line,
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
+
+  const handleSerialConnect = useCallback((reused: boolean) => {
+    setLogs((d) => [
+      ...d,
+      {
+        id: getRandomId(),
+        content: `Device ${reused ? "port reopened" : "connected"}`,
+        type: "info",
+        timestamp: new Date(),
+      },
+    ]);
+
+    setIsConnected(true);
+  }, []);
+
+  const handleSerialDisconnect = useCallback(
+    async (status: SerialConnectionStatus) => {
+      const disconnectLog: ILog = {
+        id: getRandomId(),
+        content: `Device ${
+          status === "disconnected" ? "disconnected" : "port closed"
+        }`,
+        type: "info",
+        timestamp: new Date(),
+      };
+
+      let chunk: ILog | null;
+
+      setLogChunk((d) => {
+        chunk = d;
+        return null;
+      });
+
+      setLogs((d) =>
+        chunk ? [...d, chunk, disconnectLog] : [...d, disconnectLog]
+      );
+      setIsConnected(false);
+
+      if (status === "disconnected") setReadyToConnect(false);
+    },
+    []
   );
 
   useEffect(() => {
-    const ref = logsRef.current;
-    if (!ref) return;
+    serial.addListener("chunk", handleSerialChunk);
+    serial.addListener("line", handleSerialLine);
+    serial.addListener("connect", handleSerialConnect);
+    serial.addListener("disconnect", handleSerialDisconnect);
 
-    ref.scrollTo(0, ref.scrollHeight);
-  }, [filteredLogs]);
+    return () => {
+      serial.removeListener("chunk", handleSerialChunk);
+      serial.removeListener("line", handleSerialLine);
+      serial.removeListener("connect", handleSerialConnect);
+      serial.removeListener("disconnect", handleSerialDisconnect);
+    };
+  }, [
+    handleSerialChunk,
+    handleSerialLine,
+    handleSerialConnect,
+    handleSerialDisconnect,
+    serial,
+  ]);
 
-  const handleSearchClear = () => {
-    setSearch("");
-    setSelectedType(undefined);
-  };
+  useEffect(() => {
+    if (!readyToConnect) return;
 
-  const handleClearLogs = () => {
-    setSearch("");
-    setSelectedType(undefined);
-    onClearLogs();
-  };
+    const connect = async () => {
+      try {
+        await serial.connect({ baudRate: baud });
+      } catch (err: any) {
+        setLogs((d) => [
+          ...d,
+          {
+            id: getRandomId(),
+            content: err.message,
+            type: "info",
+            timestamp: new Date(),
+          },
+        ]);
+
+        setReadyToConnect(false);
+      }
+    };
+
+    connect();
+  }, [readyToConnect, baud, serial]);
+
+  useEffect(() => {
+    if (readyToConnect) return;
+
+    serial.disconnect();
+  }, [readyToConnect, serial]);
 
   return (
-    <Container>
-      <ManagementBar
-        deviceInfo={deviceInfo}
-        onConnectionRequestChange={onConnectionRequestChange}
-        baud={baud}
-        onBaudChange={onBaudChange}
-      />
-      <Header
-        search={search}
-        logTypesCount={logTypesCount}
-        selectedType={selectedType}
-        showClearButton={!search && !selectedType && !!logs.length}
-        onSearchChange={setSearch}
-        onSelectedTypeChange={setSelectedType}
-        onSearchClear={handleSearchClear}
-        onClearLogs={handleClearLogs}
-      />
-      {search && !filteredLogs.length ? (
-        <NoResultsMessage />
-      ) : (
-        <LogContainer ref={logsRef} data-child-full-size={!filteredLogs.length}>
-          {filteredLogs.map((log, index, allLogs) => (
-            <Log
-              {...log}
-              key={log.id}
-              isFirstOfType={!(allLogs[index - 1]?.type === log.type)}
-            />
-          ))}
-          <ConnectDeviceMessage
-            show={!(search || selectedType) && !deviceInfo}
-            onConnectionRequest={() => onConnectionRequestChange(true)}
-          />
-        </LogContainer>
-      )}
-    </Container>
+    <ConsoleLayout
+      logs={logChunk ? [...logs, logChunk] : logs}
+      baud={baud}
+      onBaudChange={handleBaudRateChange}
+      deviceInfo={isConnected ? "Connected" : ""}
+      onClearLogs={handleClearLogs}
+      onConnectionRequestChange={setReadyToConnect}
+    />
   );
 };

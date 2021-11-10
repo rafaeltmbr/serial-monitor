@@ -26,6 +26,7 @@ const darkColors = {
   logIcon: "#56CCF2",
   warnIcon: "#EBF393",
   errorIcon: "#FF5555",
+  infoIcon: "#4e86d9",
   managementBar: "#1E2029",
   managementBarText: "#E0E0E2",
   baudOptionHover: "#272834",

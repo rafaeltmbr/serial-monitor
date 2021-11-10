@@ -15,7 +15,7 @@ export const logTypeCategoryName: Record<LogType, string> = {
   error: "Errors",
   command: "Commands",
   send: "Sent",
-  info: "",
+  info: "Info",
 };
 
 export interface ILog {

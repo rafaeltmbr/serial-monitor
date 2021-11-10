@@ -33,6 +33,10 @@ export const Container = styled.div`
     color: ${(props) => props.theme.colors.icon};
   }
 
+  &[data-type="info"] {
+    color: ${(props) => props.theme.colors.infoIcon};
+  }
+
   &[data-selected="true"] {
     outline: 2px solid ${(props) => props.theme.colors.icon};
   }

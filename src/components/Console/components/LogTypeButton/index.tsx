@@ -1,6 +1,6 @@
 import React from "react";
 import { IconType } from "react-icons";
-import { AiFillWarning } from "react-icons/ai";
+import { AiFillInfoCircle, AiFillWarning } from "react-icons/ai";
 import { FaCode, FaReceipt } from "react-icons/fa";
 import { MdCancel } from "react-icons/md";
 import { IoMdSend } from "react-icons/io";
@@ -22,7 +22,7 @@ const typeIcons: Record<LogType, IconType | null> = {
   error: MdCancel,
   command: FaCode,
   send: IoMdSend,
-  info: null,
+  info: AiFillInfoCircle,
 };
 
 export const LogTypeButton: React.FC<IProps> = ({

@@ -11,7 +11,7 @@ List of all tasks that should be done before the first release.
 - [x] Show the current filtering setence (e.g. 'Showing results for "temperature" in "warn" category').
 
 ### feature
-- [ ] Allow the user to filter by system info logs (e.g. filter by info like "Device connected" etc).
+- [x] Allow the user to filter by system info logs (e.g. filter by info like "Device connected" etc).
 - [ ] Add the send message input and its complete functionality.
 - [ ] Add support for incoming commands through logs (e.g. warns, errors etc).
 - [ ] Fullscreen mode

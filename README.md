@@ -14,7 +14,6 @@ List of all tasks that should be done before the first release.
 - [x] Allow the user to filter by system info logs (e.g. filter by info like "Device connected" etc).
 - [ ] Add the send message input and its complete functionality.
 - [ ] Add support for incoming commands through logs (e.g. warns, errors etc).
-- [ ] Fullscreen mode
-- [ ] Light mode
+
 ### performance
 - [ ] Implement the window technique in order to support big log lists (i.e. lists with 50+ logs).

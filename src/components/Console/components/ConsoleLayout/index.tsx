@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { memo, MutableRefObject } from "react";
 
 import { ILog, LogType } from "../../../../interfaces/Log/ILog";
 import { filterLogAndCount } from "../../../../util/filterLogAndCount";
@@ -11,85 +11,89 @@ import { NoResultsMessage } from "../NoResultsMessage";
 import { Container, LogContainer } from "./styles";
 
 interface IProps {
+  search: string;
+  selectedType?: LogType;
   logs: ILog[];
   baud: number;
   deviceInfo: string;
+  logsContainerRef?: MutableRefObject<Element | undefined>;
+  onSearch: (search: string) => void;
+  onSelectedType: (selectedType?: LogType) => void;
   onClearLogs: () => void;
   onBaudChange: (baud: number) => void;
   onConnectionRequestChange: (status: boolean) => void;
 }
 
-export const ConsoleLayout: React.FC<IProps> = ({
-  logs,
-  baud,
-  deviceInfo,
-  onClearLogs,
-  onBaudChange,
-  onConnectionRequestChange,
-}) => {
-  const [search, setSearch] = useState("");
-  const [selectedType, setSelectedType] = useState<LogType | undefined>();
-  const logsRef = useRef<HTMLUListElement>(null);
-
-  const [filteredLogs, logTypesCount] = filterLogAndCount(
-    logs,
+export const ConsoleLayout: React.FC<IProps> = memo(
+  ({
     search,
-    selectedType
-  );
+    selectedType,
+    logs,
+    baud,
+    deviceInfo,
+    logsContainerRef,
+    onSearch,
+    onSelectedType,
+    onClearLogs,
+    onBaudChange,
+    onConnectionRequestChange,
+  }) => {
+    const [filteredLogs, logTypesCount] = filterLogAndCount(
+      logs,
+      search,
+      selectedType
+    );
 
-  useEffect(() => {
-    const ref = logsRef.current;
-    if (!ref) return;
+    const handleSearchClear = () => {
+      onSearch("");
+      onSelectedType(undefined);
+    };
 
-    ref.scrollTo(0, ref.scrollHeight);
-  }, [filteredLogs]);
+    const handleClearLogs = () => {
+      onSearch("");
+      onSelectedType(undefined);
+      onClearLogs();
+    };
 
-  const handleSearchClear = () => {
-    setSearch("");
-    setSelectedType(undefined);
-  };
-
-  const handleClearLogs = () => {
-    setSearch("");
-    setSelectedType(undefined);
-    onClearLogs();
-  };
-
-  return (
-    <Container>
-      <ManagementBar
-        deviceInfo={deviceInfo}
-        onConnectionRequestChange={onConnectionRequestChange}
-        baud={baud}
-        onBaudChange={onBaudChange}
-      />
-      <Header
-        search={search}
-        logTypesCount={logTypesCount}
-        selectedType={selectedType}
-        showClearButton={!search && !selectedType && !!logs.length}
-        onSearchChange={setSearch}
-        onSelectedTypeChange={setSelectedType}
-        onSearchClear={handleSearchClear}
-        onClearLogs={handleClearLogs}
-      />
-      {search && !filteredLogs.length ? (
-        <NoResultsMessage />
-      ) : (
-        <LogContainer ref={logsRef} data-child-full-size={!filteredLogs.length}>
-          {filteredLogs.map((log, index, allLogs) => (
-            <Log
-              {...log}
-              key={log.id}
-              isFirstOfType={!(allLogs[index - 1]?.type === log.type)}
+    return (
+      <Container>
+        <ManagementBar
+          deviceInfo={deviceInfo}
+          onConnectionRequestChange={onConnectionRequestChange}
+          baud={baud}
+          onBaudChange={onBaudChange}
+        />
+        <Header
+          search={search}
+          logTypesCount={logTypesCount}
+          selectedType={selectedType}
+          showClearButton={!search && !selectedType && !!logs.length}
+          onSearchChange={onSearch}
+          onSelectedTypeChange={onSelectedType}
+          onSearchClear={handleSearchClear}
+          onClearLogs={handleClearLogs}
+        />
+        {search && !filteredLogs.length ? (
+          <NoResultsMessage />
+        ) : (
+          <LogContainer
+            ref={logsContainerRef as any}
+            data-child-full-size={!filteredLogs.length}
+          >
+            {filteredLogs.map((log, index, allLogs) => (
+              <Log
+                {...log}
+                key={log.id}
+                isFirstOfType={!(allLogs[index - 1]?.type === log.type)}
+              />
+            ))}
+            <ConnectDeviceMessage
+              show={!(search || selectedType) && !deviceInfo}
+              onConnectionRequest={() => onConnectionRequestChange(true)}
             />
-          ))}
-          <ConnectDeviceMessage
-            show={!(search || selectedType) && !deviceInfo}
-            onConnectionRequest={() => onConnectionRequestChange(true)}
-          />
-        </LogContainer>
-      )}
-    </Container>
-  );
-};
+          </LogContainer>
+        )}
+      </Container>
+    );
+  }
+);

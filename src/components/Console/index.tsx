@@ -1,20 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
 import { defaultBaudRate } from "../../config/baud";
-import { ILog } from "../../interfaces/Log/ILog";
+import { useScrollThreshold } from "../../hooks/ScrollThreshold";
+import { ILog, LogType } from "../../interfaces/Log/ILog";
 import { getRandomId } from "../../util/getRandomId";
 import {
   SerialConnection,
   SerialConnectionStatus,
 } from "../../util/SerialConnection";
 
+const LOG_PAGE_SIZE = 50; // 50 logs per page
+
 export const Console: React.FC = () => {
+  const [search, setSearch] = useState("");
+  const [selectedType, setSelectedType] = useState<LogType | undefined>();
   const [logs, setLogs] = useState<ILog[]>([]);
   const [logChunk, setLogChunk] = useState<ILog | null>(null);
+  const [page, setPage] = useState(1);
   const [baud, setBaud] = useState(defaultBaudRate);
   const [readyToConnect, setReadyToConnect] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const serial = useMemo(() => new SerialConnection(), []);
+  const scrollRef = useRef<Element>();
 
   const handleClearLogs = () => {
     setLogs([]);
@@ -138,14 +151,41 @@ export const Console: React.FC = () => {
     serial.disconnect();
   }, [readyToConnect, serial]);
 
+  const consoleLogs = useMemo(() => {
+    const newLogs = logChunk ? [...logs, logChunk] : logs;
+
+    const pageStart = (page - 1) * LOG_PAGE_SIZE;
+    const pageEnd = pageStart + LOG_PAGE_SIZE;
+
+    return newLogs.slice(pageStart, pageEnd);
+  }, [logs, logChunk, page]);
+
+  useScrollThreshold(
+    () => {
+      console.log("threshold triggered");
+    },
+    [],
+    scrollRef,
+    {
+      offset: {
+        bottom: 200,
+      },
+    }
+  );
+
   return (
     <ConsoleLayout
-      logs={logChunk ? [...logs, logChunk] : logs}
+      logs={consoleLogs}
       baud={baud}
       onBaudChange={handleBaudRateChange}
       deviceInfo={isConnected ? "Connected" : ""}
       onClearLogs={handleClearLogs}
       onConnectionRequestChange={setReadyToConnect}
+      search={search}
+      onSearch={setSearch}
+      selectedType={selectedType}
+      onSelectedType={setSelectedType}
+      logsContainerRef={scrollRef}
     />
   );
 };

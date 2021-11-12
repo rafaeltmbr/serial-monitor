@@ -16,4 +16,4 @@ List of all tasks that should be done before the first release.
 - [ ] Add support for incoming commands through logs (e.g. warns, errors etc).
 
 ### performance
-- [ ] Implement the window technique in order to support big log lists (i.e. lists with 50+ logs).
+- [x] Implement the window technique in order to support big log lists (i.e. lists with 50+ logs).

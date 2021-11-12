@@ -1,7 +1,10 @@
 import React, { memo, MutableRefObject } from "react";
 
-import { ILog, LogType } from "../../../../interfaces/Log/ILog";
-import { filterLogAndCount } from "../../../../util/filterLogAndCount";
+import {
+  ILog,
+  ILogCountByType,
+  LogType,
+} from "../../../../interfaces/Log/ILog";
 import { ConnectDeviceMessage } from "../ConnectDeviceMessage";
 import { Header } from "../Header";
 import { Log } from "../Log";
@@ -12,6 +15,7 @@ import { Container, LogContainer } from "./styles";
 
 interface IProps {
   search: string;
+  logTypesCount: ILogCountByType;
   selectedType?: LogType;
   logs: ILog[];
   baud: number;
@@ -32,18 +36,13 @@ export const ConsoleLayout: React.FC<IProps> = memo(
     baud,
     deviceInfo,
     logsContainerRef,
+    logTypesCount,
     onSearch,
     onSelectedType,
     onClearLogs,
     onBaudChange,
     onConnectionRequestChange,
   }) => {
-    const [filteredLogs, logTypesCount] = filterLogAndCount(
-      logs,
-      search,
-      selectedType
-    );
-
     const handleSearchClear = () => {
       onSearch("");
       onSelectedType(undefined);
@@ -73,14 +72,14 @@ export const ConsoleLayout: React.FC<IProps> = memo(
           onSearchClear={handleSearchClear}
           onClearLogs={handleClearLogs}
         />
-        {search && !filteredLogs.length ? (
+        {search && !logs.length ? (
           <NoResultsMessage />
         ) : (
           <LogContainer
             ref={logsContainerRef as any}
-            data-child-full-size={!filteredLogs.length}
+            data-child-full-size={!logs.length}
           >
-            {filteredLogs.map((log, index, allLogs) => (
+            {logs.map((log, index, allLogs) => (
               <Log
                 {...log}
                 key={log.id}

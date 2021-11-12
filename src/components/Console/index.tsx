@@ -9,20 +9,22 @@ import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout
 import { defaultBaudRate } from "../../config/baud";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
 import { ILog, LogType } from "../../interfaces/Log/ILog";
+import { filterLogAndCount } from "../../util/filterLogAndCount";
 import { getRandomId } from "../../util/getRandomId";
 import {
   SerialConnection,
   SerialConnectionStatus,
 } from "../../util/SerialConnection";
 
-const LOG_PAGE_SIZE = 50; // 50 logs per page
+const LOG_PAGE_SIZE = 30; // 50 logs per page
+const WINDOW_PAGES_SIZE = 3; // 3 * LOG_PAGE_SIZE
 
 export const Console: React.FC = () => {
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<LogType | undefined>();
   const [logs, setLogs] = useState<ILog[]>([]);
   const [logChunk, setLogChunk] = useState<ILog | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(WINDOW_PAGES_SIZE);
   const [baud, setBaud] = useState(defaultBaudRate);
   const [readyToConnect, setReadyToConnect] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -30,6 +32,7 @@ export const Console: React.FC = () => {
   const scrollRef = useRef<Element>();
 
   const handleClearLogs = () => {
+    setPage(WINDOW_PAGES_SIZE);
     setLogs([]);
   };
 
@@ -102,6 +105,10 @@ export const Console: React.FC = () => {
   );
 
   useEffect(() => {
+    setPage(WINDOW_PAGES_SIZE);
+  }, [search, selectedType]);
+
+  useEffect(() => {
     serial.addListener("chunk", handleSerialChunk);
     serial.addListener("line", handleSerialLine);
     serial.addListener("connect", handleSerialConnect);
@@ -151,31 +158,41 @@ export const Console: React.FC = () => {
     serial.disconnect();
   }, [readyToConnect, serial]);
 
-  const consoleLogs = useMemo(() => {
-    const newLogs = logChunk ? [...logs, logChunk] : logs;
+  const [filteredLogs, logTypesCount] = useMemo(
+    () => filterLogAndCount(logs, search, selectedType),
+    [logs, search, selectedType]
+  );
 
-    const pageStart = (page - 1) * LOG_PAGE_SIZE;
-    const pageEnd = pageStart + LOG_PAGE_SIZE;
+  const { logsSlice, pages } = useMemo(() => {
+    const newLogs = logChunk ? [...filteredLogs, logChunk] : filteredLogs;
 
-    return newLogs.slice(pageStart, pageEnd);
-  }, [logs, logChunk, page]);
+    const pageStart = (page - WINDOW_PAGES_SIZE) * LOG_PAGE_SIZE;
+    const pageEnd = pageStart + WINDOW_PAGES_SIZE * LOG_PAGE_SIZE;
+
+    const logsSlice = newLogs.slice(pageStart, pageEnd);
+    const pages = Math.ceil(newLogs.length / LOG_PAGE_SIZE);
+
+    return { logsSlice, pages };
+  }, [filteredLogs, logChunk, page]);
 
   useScrollThreshold(
-    () => {
-      console.log("threshold triggered");
-    },
+    () => setPage((p) => (p > WINDOW_PAGES_SIZE ? p - 1 : p)),
     [],
     scrollRef,
-    {
-      offset: {
-        bottom: 200,
-      },
-    }
+    { offset: { top: 200 } }
+  );
+
+  useScrollThreshold(
+    () => setPage((p) => (p < pages ? p + 1 : p)),
+    [pages],
+    scrollRef,
+    { offset: { bottom: 200 } }
   );
 
   return (
     <ConsoleLayout
-      logs={consoleLogs}
+      logs={logsSlice}
+      logTypesCount={logTypesCount}
       baud={baud}
       onBaudChange={handleBaudRateChange}
       deviceInfo={isConnected ? "Connected" : ""}

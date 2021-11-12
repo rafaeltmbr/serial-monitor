@@ -56,7 +56,7 @@ export const useScrollThreshold: FuncType = (
     const element = ref.current;
     if (!element) return;
 
-    let previousFired = false;
+    let previousFired = true;
 
     const scrollHandler = (e: Event) => {
       const fired = checkScrollThreshold(e.target as Element, threshold);

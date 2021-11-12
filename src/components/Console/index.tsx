@@ -232,7 +232,9 @@ export const Console: React.FC = () => {
   );
 
   useScrollThreshold(
-    () => setAutoScroll(!detectUserScroll.enabled),
+    () => {
+      if (autoScroll && detectUserScroll.enabled) setAutoScroll(false);
+    },
     [autoScroll],
     scrollRef,
     { ratio: { y: { min: 0.98 } } }

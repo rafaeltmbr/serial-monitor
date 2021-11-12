@@ -28,8 +28,10 @@ export const Console: React.FC = () => {
   const [baud, setBaud] = useState(defaultBaudRate);
   const [readyToConnect, setReadyToConnect] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
   const serial = useMemo(() => new SerialConnection(), []);
   const scrollRef = useRef<Element>();
+  const detectUserScroll = useMemo(() => ({ enabled: false }), []);
 
   const handleClearLogs = () => {
     setPage(WINDOW_PAGES_SIZE);
@@ -105,6 +107,10 @@ export const Console: React.FC = () => {
   );
 
   useEffect(() => {
+    setAutoScroll(isConnected);
+  }, [isConnected]);
+
+  useEffect(() => {
     setPage(WINDOW_PAGES_SIZE);
   }, [search, selectedType]);
 
@@ -172,8 +178,21 @@ export const Console: React.FC = () => {
     const logsSlice = newLogs.slice(pageStart, pageEnd);
     const pages = Math.ceil(newLogs.length / LOG_PAGE_SIZE);
 
+    detectUserScroll.enabled = false;
+
     return { logsSlice, pages };
-  }, [filteredLogs, logChunk, page]);
+  }, [filteredLogs, logChunk, page, detectUserScroll]);
+
+  useEffect(() => {
+    if (autoScroll) setPage(pages);
+  }, [autoScroll, pages]);
+
+  useEffect(() => {
+    detectUserScroll.enabled = true;
+
+    if (autoScroll)
+      scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+  }, [logsSlice, autoScroll, scrollRef, detectUserScroll]);
 
   useScrollThreshold(
     () => setPage((p) => (p > WINDOW_PAGES_SIZE ? p - 1 : p)),
@@ -201,6 +220,22 @@ export const Console: React.FC = () => {
     [pages],
     scrollRef,
     { ratio: { y: { max: 0.98 } } }
+  );
+
+  useScrollThreshold(
+    () => {
+      if (page === pages) setAutoScroll(true);
+    },
+    [page, pages, autoScroll],
+    scrollRef,
+    { ratio: { y: { max: 0.99 } } }
+  );
+
+  useScrollThreshold(
+    () => setAutoScroll(!detectUserScroll.enabled),
+    [autoScroll],
+    scrollRef,
+    { ratio: { y: { min: 0.98 } } }
   );
 
   return (

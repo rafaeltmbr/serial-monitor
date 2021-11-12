@@ -35,6 +35,7 @@ export const Console: React.FC = () => {
 
   const handleClearLogs = () => {
     setPage(WINDOW_PAGES_SIZE);
+    setAutoScroll(true);
     setLogs([]);
   };
 
@@ -176,7 +177,7 @@ export const Console: React.FC = () => {
     const pageEnd = pageStart + WINDOW_PAGES_SIZE * LOG_PAGE_SIZE;
 
     const logsSlice = newLogs.slice(pageStart, pageEnd);
-    const pages = Math.ceil(newLogs.length / LOG_PAGE_SIZE);
+    const pages = Math.ceil(filteredLogs.length / LOG_PAGE_SIZE);
 
     detectUserScroll.enabled = false;
 
@@ -184,7 +185,7 @@ export const Console: React.FC = () => {
   }, [filteredLogs, logChunk, page, detectUserScroll]);
 
   useEffect(() => {
-    if (autoScroll) setPage(pages);
+    if (autoScroll) setPage(Math.max(pages, WINDOW_PAGES_SIZE));
   }, [autoScroll, pages]);
 
   useEffect(() => {
@@ -198,7 +199,7 @@ export const Console: React.FC = () => {
     () => setPage((p) => (p > WINDOW_PAGES_SIZE ? p - 1 : p)),
     [],
     scrollRef,
-    { offset: { top: 300 } }
+    { offset: { top: 500 } }
   );
 
   useScrollThreshold(
@@ -212,7 +213,7 @@ export const Console: React.FC = () => {
     () => setPage((p) => (p < pages ? p + 1 : p)),
     [pages],
     scrollRef,
-    { offset: { bottom: 300 } }
+    { offset: { bottom: 500 } }
   );
 
   useScrollThreshold(
@@ -224,7 +225,7 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      if (page === pages) setAutoScroll(true);
+      if (page === Math.max(pages, WINDOW_PAGES_SIZE)) setAutoScroll(true);
     },
     [page, pages, autoScroll],
     scrollRef,

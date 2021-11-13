@@ -11,9 +11,15 @@ export const Container = styled.div`
   flex-direction: column;
 `;
 
-export const LogContainer = styled.ul`
-  padding: 1rem 0.5rem;
+export const LogsAndScrollButtonsContainer = styled.div`
   flex: 1;
+  position: relative;
+  overflow: hidden;
+`;
+
+export const LogContainer = styled.ul`
+  height: 100%;
+  padding: 1rem 0.5rem;
   overflow-y: auto;
 
   &[data-child-full-size="true"] {

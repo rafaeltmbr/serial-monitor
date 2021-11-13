@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
 import { defaultBaudRate } from "../../config/baud";
+import { useScrollDirection } from "../../hooks/ScrollDirection";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
 import { ILog, LogType } from "../../interfaces/Log/ILog";
 import { filterLogAndCount } from "../../util/filterLogAndCount";
@@ -29,6 +30,8 @@ export const Console: React.FC = () => {
   const [readyToConnect, setReadyToConnect] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [showScrollTopButton, setShowScrollTopButton] = useState(false);
+  const [showScrollDownButton, setShowScrollDownButton] = useState(false);
   const serial = useMemo(() => new SerialConnection(), []);
   const scrollRef = useRef<Element>();
   const detectUserScroll = useMemo(() => ({ enabled: false }), []);
@@ -37,6 +40,8 @@ export const Console: React.FC = () => {
     setPage(WINDOW_PAGES_SIZE);
     setAutoScroll(true);
     setLogs([]);
+    setShowScrollTopButton(false);
+    setShowScrollDownButton(false);
   };
 
   const handleBaudRateChange = (value: number) => {
@@ -225,7 +230,10 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      if (page === Math.max(pages, WINDOW_PAGES_SIZE)) setAutoScroll(true);
+      if (page === Math.max(pages, WINDOW_PAGES_SIZE)) {
+        setAutoScroll(true);
+        setShowScrollDownButton(false);
+      }
     },
     [page, pages, autoScroll],
     scrollRef,
@@ -241,6 +249,44 @@ export const Console: React.FC = () => {
     { offset: { bottom: { max: 1 } } }
   );
 
+  useScrollThreshold(
+    () => {
+      setShowScrollTopButton(false);
+    },
+    [autoScroll],
+    scrollRef,
+    { offset: { top: { min: 50 } } }
+  );
+
+  useScrollDirection(
+    (direction) => setShowScrollTopButton(direction.y < 0),
+    [],
+    scrollRef
+  );
+
+  useScrollDirection(
+    (direction) => setShowScrollDownButton(direction.y > 0 && !autoScroll),
+    [autoScroll],
+    scrollRef
+  );
+
+  const handleScrollTopClick = () => {
+    setAutoScroll(false);
+    setPage(WINDOW_PAGES_SIZE);
+    scrollRef.current?.scrollTo(0, 0);
+    setShowScrollTopButton(false);
+  };
+
+  const handleScrollDownClick = () => {
+    setAutoScroll(true);
+    setPage(pages);
+    setShowScrollDownButton(false);
+  };
+
+  useEffect(() => {
+    console.log(`${page} / ${pages}`);
+  }, [page, pages]);
+
   return (
     <ConsoleLayout
       logs={logsSlice}
@@ -255,6 +301,10 @@ export const Console: React.FC = () => {
       selectedType={selectedType}
       onSelectedType={setSelectedType}
       logsContainerRef={scrollRef}
+      showScrollTopButton={showScrollTopButton}
+      showScrollDownButton={showScrollDownButton}
+      onScrollTopClick={handleScrollTopClick}
+      onScrollDownClick={handleScrollDownClick}
     />
   );
 };

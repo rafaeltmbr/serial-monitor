@@ -1,9 +1,4 @@
-import {
-  DependencyList,
-  EffectCallback,
-  MutableRefObject,
-  useEffect,
-} from "react";
+import { DependencyList, MutableRefObject, useEffect } from "react";
 import { getScrollInfo, IScrollInfo } from "../../util/getScrollInfo";
 
 interface IScrollThreshold {
@@ -29,7 +24,7 @@ interface IMinMax {
 }
 
 type FuncType = (
-  callback: EffectCallback,
+  callback: (info: IScrollInfo) => void,
   deps: DependencyList,
   ref: MutableRefObject<Element | undefined>,
   threshold: IScrollThreshold
@@ -48,8 +43,9 @@ export const useScrollThreshold: FuncType = (
     let previousFired = true;
 
     const scrollHandler = (e: Event) => {
-      const fired = checkScrollThreshold(e.target as Element, threshold);
-      if (fired && !previousFired) callback();
+      const info = getScrollInfo(element);
+      const fired = checkScrollThreshold(info, threshold);
+      if (fired && !previousFired) callback(info);
 
       previousFired = fired;
     };
@@ -62,11 +58,9 @@ export const useScrollThreshold: FuncType = (
 };
 
 const checkScrollThreshold = (
-  element: Element,
+  info: IScrollInfo,
   threshold: IScrollThreshold
 ) => {
-  const info = getScrollInfo(element);
-
   return checkFiredRatio(info, threshold) || checkFiredOffset(info, threshold);
 };
 

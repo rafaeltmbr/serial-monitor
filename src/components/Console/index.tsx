@@ -281,12 +281,14 @@ export const Console: React.FC = () => {
     setShowScrollDownButton(false);
   };
 
+  const isFiltering = search || selectedType;
+
   console.log("RENDERED", logs.length);
 
   return (
     <ConsoleLayout
       logs={logsSlice}
-      logChunk={logChunk}
+      logChunk={isFiltering ? null : logChunk}
       logTypesCount={logTypesCount}
       baud={baud}
       onBaudChange={handleBaudRateChange}

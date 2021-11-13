@@ -7,11 +7,12 @@ import React, {
 } from "react";
 import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
 import { defaultBaudRate } from "../../config/baud";
+import { useAccumulatorInterval } from "../../hooks/AccumulatorInterval";
 import { useScrollDirection } from "../../hooks/ScrollDirection";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
 import { ILog, LogType } from "../../interfaces/Log/ILog";
 import { filterLogAndCount } from "./util/filterLogAndCount";
-import { getRandomId } from "./util/getRandomId";
+import { makeLog } from "./util/makeLog";
 import {
   SerialConnection,
   SerialConnectionStatus,
@@ -19,6 +20,7 @@ import {
 
 const LOG_PAGE_SIZE = 30; // 50 logs per page
 const WINDOW_PAGES_SIZE = 3; // 3 * LOG_PAGE_SIZE
+const LOG_REFRESH_TIMEOUT = 200; // 5x per second
 
 export const Console: React.FC = () => {
   const [search, setSearch] = useState("");
@@ -48,68 +50,68 @@ export const Console: React.FC = () => {
     setBaud(value);
   };
 
-  const handleSerialChunk = useCallback((chunk: string) => {
-    setLogChunk({
-      id: getRandomId(),
-      type: "log",
-      content: chunk,
-      timestamp: new Date(),
-    });
-  }, []);
+  const pushNewLogChunk = useAccumulatorInterval<string | null>(
+    (chunks) => {
+      const chunkContent = chunks[chunks.length - 1];
 
-  const handleSerialLine = useCallback((line: string) => {
-    setLogChunk(null);
-    setLogs((d) => [
-      ...d,
-      {
-        id: getRandomId(),
-        type: "log",
-        content: line,
-        timestamp: new Date(),
-      },
-    ]);
-  }, []);
+      const chunk = makeLog("log", chunkContent || "");
 
-  const handleSerialConnect = useCallback((reused: boolean) => {
-    setLogs((d) => [
-      ...d,
-      {
-        id: getRandomId(),
-        content: `Device ${reused ? "port reopened" : "connected"}`,
-        type: "info",
-        timestamp: new Date(),
-      },
-    ]);
+      setLogChunk(chunkContent ? chunk : null);
+    },
+    [],
+    LOG_REFRESH_TIMEOUT
+  );
 
-    setIsConnected(true);
-  }, []);
+  const handleSerialChunk = useCallback(pushNewLogChunk, [pushNewLogChunk]);
+
+  const pushNewLogLine = useAccumulatorInterval<ILog>(
+    (accLogs) => {
+      pushNewLogChunk(null);
+      setLogs((d) => [...d, ...accLogs]);
+    },
+    [],
+    LOG_REFRESH_TIMEOUT
+  );
+
+  const handleSerialLine = useCallback(
+    (line: string) => pushNewLogLine(makeLog("log", line)),
+    [pushNewLogLine]
+  );
+
+  const handleSerialConnect = useCallback(
+    (reused: boolean) => {
+      pushNewLogLine(
+        makeLog("info", `Device ${reused ? "port reopened" : "connected"}`)
+      );
+
+      setIsConnected(true);
+    },
+    [pushNewLogLine]
+  );
 
   const handleSerialDisconnect = useCallback(
     async (status: SerialConnectionStatus) => {
-      const disconnectLog: ILog = {
-        id: getRandomId(),
-        content: `Device ${
-          status === "disconnected" ? "disconnected" : "port closed"
-        }`,
-        type: "info",
-        timestamp: new Date(),
-      };
+      const msg = `Device ${
+        status === "disconnected" ? "disconnected" : "port closed"
+      }`;
+      const disconnectLog: ILog = makeLog("info", msg);
 
-      let chunk: ILog | null;
+      let chunk: ILog | null = null;
 
       setLogChunk((d) => {
         chunk = d;
-        return null;
+        return d;
       });
 
-      setLogs((d) =>
-        chunk ? [...d, chunk, disconnectLog] : [...d, disconnectLog]
-      );
+      if (chunk) pushNewLogLine(chunk);
+
+      pushNewLogLine(disconnectLog);
+      pushNewLogChunk(null);
       setIsConnected(false);
 
       if (status === "disconnected") setReadyToConnect(false);
     },
-    []
+    [pushNewLogChunk, pushNewLogLine]
   );
 
   useEffect(() => {
@@ -146,23 +148,15 @@ export const Console: React.FC = () => {
     const connect = async () => {
       try {
         await serial.connect({ baudRate: baud });
-      } catch (err: any) {
-        setLogs((d) => [
-          ...d,
-          {
-            id: getRandomId(),
-            content: err.message,
-            type: "info",
-            timestamp: new Date(),
-          },
-        ]);
+      } catch (err: unknown) {
+        pushNewLogLine(makeLog("info", (err as Error).message));
 
         setReadyToConnect(false);
       }
     };
 
     connect();
-  }, [readyToConnect, baud, serial]);
+  }, [readyToConnect, baud, serial, pushNewLogLine]);
 
   useEffect(() => {
     if (readyToConnect) return;
@@ -175,19 +169,23 @@ export const Console: React.FC = () => {
     [logs, search, selectedType]
   );
 
-  const { logsSlice, pages } = useMemo(() => {
-    const newLogs = logChunk ? [...filteredLogs, logChunk] : filteredLogs;
+  const pages = Math.max(
+    Math.ceil(filteredLogs.length / LOG_PAGE_SIZE),
+    WINDOW_PAGES_SIZE
+  );
 
-    const pageStart = (page - WINDOW_PAGES_SIZE) * LOG_PAGE_SIZE;
+  const currentPage = autoScroll ? pages : page;
+
+  const logsSlice = useMemo(() => {
+    const pageStart = (currentPage - WINDOW_PAGES_SIZE) * LOG_PAGE_SIZE;
     const pageEnd = pageStart + WINDOW_PAGES_SIZE * LOG_PAGE_SIZE;
 
-    const logsSlice = newLogs.slice(pageStart, pageEnd);
-    const pages = Math.ceil(filteredLogs.length / LOG_PAGE_SIZE);
+    const logsSlice = filteredLogs.slice(pageStart, pageEnd);
 
     detectUserScroll.enabled = false;
 
-    return { logsSlice, pages };
-  }, [filteredLogs, logChunk, page, detectUserScroll]);
+    return logsSlice;
+  }, [filteredLogs, currentPage, detectUserScroll]);
 
   useEffect(() => {
     if (autoScroll) setPage(Math.max(pages, WINDOW_PAGES_SIZE));
@@ -283,9 +281,12 @@ export const Console: React.FC = () => {
     setShowScrollDownButton(false);
   };
 
+  console.log("RENDERED", logs.length);
+
   return (
     <ConsoleLayout
       logs={logsSlice}
+      logChunk={logChunk}
       logTypesCount={logTypesCount}
       baud={baud}
       onBaudChange={handleBaudRateChange}

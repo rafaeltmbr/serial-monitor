@@ -23,6 +23,7 @@ interface IProps {
   logTypesCount: ILogCountByType;
   selectedType?: LogType;
   logs: ILog[];
+  logChunk: ILog | null;
   baud: number;
   deviceInfo: string;
   logsContainerRef?: MutableRefObject<Element | undefined>;
@@ -42,6 +43,7 @@ export const ConsoleLayout: React.FC<IProps> = memo(
     search,
     selectedType,
     logs,
+    logChunk,
     baud,
     deviceInfo,
     logsContainerRef,
@@ -100,6 +102,15 @@ export const ConsoleLayout: React.FC<IProps> = memo(
                   isFirstOfType={!(allLogs[index - 1]?.type === log.type)}
                 />
               ))}
+              {logChunk && (
+                <Log
+                  {...logChunk}
+                  key={logChunk.id}
+                  isFirstOfType={
+                    !(logs[logs.length - 1]?.type === logChunk.type)
+                  }
+                />
+              )}
               <ConnectDeviceMessage
                 show={!(search || selectedType) && !deviceInfo}
                 onConnectionRequest={() => onConnectionRequestChange(true)}

@@ -16,8 +16,11 @@ export const filterLogAndCount: FuncType = (logs, search, type) => {
   const count = {} as ILogCountByType;
   logTypes.forEach((type) => (count[type] = 0));
 
+  const shouldFilter = search || type;
+
   const filtered = logs.filter((log) => {
-    if (!containString({ source: log.content, search })) return false;
+    if (shouldFilter && !containString({ source: log.content, search }))
+      return false;
 
     count[log.type] += 1;
 

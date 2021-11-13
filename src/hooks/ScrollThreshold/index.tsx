@@ -36,11 +36,12 @@ export const useScrollThreshold: FuncType = (
   ref,
   threshold
 ) => {
+  const element = ref.current;
+
   useEffect(() => {
-    const element = ref.current;
     if (!element) return;
 
-    let previousFired = true;
+    let previousFired = false;
 
     const scrollHandler = (e: Event) => {
       const info = getScrollInfo(element);
@@ -54,7 +55,7 @@ export const useScrollThreshold: FuncType = (
 
     return () => element.removeEventListener("scroll", scrollHandler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, ref]);
+  }, [element, ...deps]);
 };
 
 const checkScrollThreshold = (

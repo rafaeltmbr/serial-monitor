@@ -283,10 +283,6 @@ export const Console: React.FC = () => {
     setShowScrollDownButton(false);
   };
 
-  useEffect(() => {
-    console.log(`${page} / ${pages}`);
-  }, [page, pages]);
-
   return (
     <ConsoleLayout
       logs={logsSlice}

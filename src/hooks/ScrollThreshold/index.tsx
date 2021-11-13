@@ -4,11 +4,18 @@ import {
   MutableRefObject,
   useEffect,
 } from "react";
-import { getScrollInfo, IScrollOffsetInfo } from "../../util/getScrollInfo";
+import { getScrollInfo, IScrollInfo } from "../../util/getScrollInfo";
 
 interface IScrollThreshold {
-  offset?: Partial<IScrollOffsetInfo>;
+  offset?: IScrollThresholdOffset;
   ratio?: IScrollThresholdRatio;
+}
+
+interface IScrollThresholdOffset {
+  top?: IMinMax;
+  right?: IMinMax;
+  bottom?: IMinMax;
+  left?: IMinMax;
 }
 
 interface IScrollThresholdRatio {
@@ -20,24 +27,6 @@ interface IMinMax {
   min?: number;
   max?: number;
 }
-
-const checkScrollThreshold = (
-  element: Element,
-  threshold: IScrollThreshold
-) => {
-  const info = getScrollInfo(element);
-
-  return (
-    info.offset.top < (threshold?.offset?.top || 0) ||
-    info.offset.bottom < (threshold.offset?.bottom || 0) ||
-    info.offset.left < (threshold.offset?.left || 0) ||
-    info.offset.right < (threshold.offset?.right || 0) ||
-    info.ratio.x < (threshold.ratio?.x?.min || 0) ||
-    info.ratio.x > (threshold.ratio?.x?.max || 1) ||
-    info.ratio.y < (threshold.ratio?.y?.min || 0) ||
-    info.ratio.y > (threshold.ratio?.y?.max || 1)
-  );
-};
 
 type FuncType = (
   callback: EffectCallback,
@@ -70,4 +59,53 @@ export const useScrollThreshold: FuncType = (
     return () => element.removeEventListener("scroll", scrollHandler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, ref]);
+};
+
+const checkScrollThreshold = (
+  element: Element,
+  threshold: IScrollThreshold
+) => {
+  const info = getScrollInfo(element);
+
+  return checkFiredRatio(info, threshold) || checkFiredOffset(info, threshold);
+};
+
+const checkFiredRatio = (
+  scrollInfo: IScrollInfo,
+  threshold: IScrollThreshold
+) => {
+  const info = scrollInfo.ratio;
+
+  if (!threshold.ratio) return false;
+
+  const { x, y } = threshold?.ratio;
+
+  return !!(
+    (x?.min && info.x < x.min) ||
+    (x?.max && info.x > x.max) ||
+    (y?.min && info.y < y.min) ||
+    (y?.max && info.y > y.max)
+  );
+};
+
+const checkFiredOffset = (
+  scrollInfo: IScrollInfo,
+  threshold: IScrollThreshold
+) => {
+  const info = scrollInfo.offset;
+
+  if (!threshold.offset) return false;
+
+  const { top, bottom, left, right } = threshold?.offset;
+
+  return !!(
+    (top?.min && info.top < top.min) ||
+    (top?.max && info.top > top.max) ||
+    (bottom?.min && info.bottom < bottom.min) ||
+    (bottom?.max && info.bottom > bottom.max) ||
+    (left?.min && info.left < left.min) ||
+    (left?.max && info.left > left.max) ||
+    (right?.min && info.right < right.min) ||
+    (right?.max && info.right > right.max)
+  );
 };

@@ -199,28 +199,28 @@ export const Console: React.FC = () => {
     () => setPage((p) => (p > WINDOW_PAGES_SIZE ? p - 1 : p)),
     [],
     scrollRef,
-    { offset: { top: 500 } }
+    { offset: { top: { min: 500 } } }
   );
 
   useScrollThreshold(
     () => setPage((p) => (p > WINDOW_PAGES_SIZE ? p - 1 : p)),
     [],
     scrollRef,
-    { ratio: { y: { min: 0.02 } } }
+    { offset: { top: { min: 100 } } }
   );
 
   useScrollThreshold(
     () => setPage((p) => (p < pages ? p + 1 : p)),
     [pages],
     scrollRef,
-    { offset: { bottom: 500 } }
+    { offset: { bottom: { min: 500 } } }
   );
 
   useScrollThreshold(
     () => setPage((p) => (p < pages ? p + 1 : p)),
     [pages],
     scrollRef,
-    { ratio: { y: { max: 0.98 } } }
+    { offset: { bottom: { min: 100 } } }
   );
 
   useScrollThreshold(
@@ -229,7 +229,7 @@ export const Console: React.FC = () => {
     },
     [page, pages, autoScroll],
     scrollRef,
-    { ratio: { y: { max: 0.99 } } }
+    { offset: { bottom: { min: 100 } } }
   );
 
   useScrollThreshold(
@@ -238,7 +238,7 @@ export const Console: React.FC = () => {
     },
     [autoScroll],
     scrollRef,
-    { ratio: { y: { min: 0.98 } } }
+    { offset: { bottom: { max: 1 } } }
   );
 
   return (

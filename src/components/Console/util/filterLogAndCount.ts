@@ -3,8 +3,8 @@ import {
   ILogCountByType,
   LogType,
   logTypes,
-} from "../interfaces/Log/ILog";
-import { containString } from "./containString";
+} from "../../../interfaces/Log/ILog";
+import { containString } from "../../../util/containString";
 
 type FuncType = (
   logs: ILog[],

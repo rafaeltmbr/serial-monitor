@@ -10,12 +10,12 @@ import { defaultBaudRate } from "../../config/baud";
 import { useScrollDirection } from "../../hooks/ScrollDirection";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
 import { ILog, LogType } from "../../interfaces/Log/ILog";
-import { filterLogAndCount } from "../../util/filterLogAndCount";
-import { getRandomId } from "../../util/getRandomId";
+import { filterLogAndCount } from "./util/filterLogAndCount";
+import { getRandomId } from "./util/getRandomId";
 import {
   SerialConnection,
   SerialConnectionStatus,
-} from "../../util/SerialConnection";
+} from "./util/SerialConnection";
 
 const LOG_PAGE_SIZE = 30; // 50 logs per page
 const WINDOW_PAGES_SIZE = 3; // 3 * LOG_PAGE_SIZE

@@ -4,7 +4,7 @@ import { IconType } from "react-icons/lib";
 import { MdCancel } from "react-icons/md";
 
 import { ILog, LogType } from "../../../../interfaces/Log/ILog";
-import { formatLogTimestamp } from "../../../../util/formatLogTimestamp";
+import { formatLogTimestamp } from "../../util/formatLogTimestamp";
 
 import { Container, Content, IConContainer, Timestamp } from "./styles";
 

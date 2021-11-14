@@ -1,4 +1,4 @@
-import { DependencyList, useEffect, useMemo } from "react";
+import { DependencyList, useEffect, useRef } from "react";
 
 type FuncType = (
   callback: (count: number) => void,
@@ -18,14 +18,14 @@ export const useRenderCount: FuncType = (
   deps = [],
   interval = 1000
 ) => {
-  const count = useMemo(() => ({ value: 0 }), []);
+  const count = useRef(0);
 
-  count.value += 1;
+  count.current += 1;
 
   useEffect(() => {
     const descriptor = setInterval(() => {
-      callback(count.value);
-      count.value = 0;
+      callback(count.current);
+      count.current = 0;
     }, interval);
 
     return () => clearInterval(descriptor);

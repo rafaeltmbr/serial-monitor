@@ -1,4 +1,4 @@
-import { DependencyList, EffectCallback, useEffect, useMemo } from "react";
+import { DependencyList, EffectCallback, useEffect, useRef } from "react";
 
 type FuncType = (callback: EffectCallback, deps?: DependencyList) => void;
 
@@ -10,15 +10,11 @@ type FuncType = (callback: EffectCallback, deps?: DependencyList) => void;
  */
 
 export const useUpdateEffect: FuncType = (callback, deps) => {
-  const firstCallTracker = useMemo(() => ({ isFirstCall: true }), []);
+  const firstCall = useRef(true);
 
   useEffect(() => {
-    if (firstCallTracker.isFirstCall) {
-      firstCallTracker.isFirstCall = false;
-      return;
-    }
-
-    return callback();
+    if (firstCall.current) firstCall.current = false;
+    else return callback();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 };

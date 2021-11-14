@@ -8,6 +8,7 @@ import React, {
 import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
 import { defaultBaudRate } from "../../config/baud";
 import { useAccumulatorInterval } from "../../hooks/AccumulatorInterval";
+import { useDebounceEffect } from "../../hooks/DebounceEffect";
 import { useScrollDirection } from "../../hooks/ScrollDirection";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
 import { ILog, LogType } from "../../interfaces/Log/ILog";
@@ -21,6 +22,7 @@ import {
 const LOG_PAGE_SIZE = 30; // 50 logs per page
 const WINDOW_PAGES_SIZE = 3; // 3 * LOG_PAGE_SIZE
 const LOG_REFRESH_TIMEOUT = 200; // 5x per second
+const STEADY_LOG_DELAY = 10;
 
 export const Console: React.FC = () => {
   const [search, setSearch] = useState("");
@@ -34,9 +36,10 @@ export const Console: React.FC = () => {
   const [autoScroll, setAutoScroll] = useState(true);
   const [showScrollTopButton, setShowScrollTopButton] = useState(false);
   const [showScrollDownButton, setShowScrollDownButton] = useState(false);
+  const [renderId, setRenderId] = useState(0);
   const serial = useMemo(() => new SerialConnection(), []);
   const scrollRef = useRef<Element>();
-  const detectUserScroll = useMemo(() => ({ enabled: false }), []);
+  const detectUserScroll = useRef(false);
 
   const handleClearLogs = useCallback(() => {
     setPage(WINDOW_PAGES_SIZE);
@@ -44,6 +47,7 @@ export const Console: React.FC = () => {
     setLogs([]);
     setShowScrollTopButton(false);
     setShowScrollDownButton(false);
+    setRenderId((id) => id + 1);
   }, []);
 
   const handleBaudRateChange = useCallback((value: number) => {
@@ -182,21 +186,14 @@ export const Console: React.FC = () => {
 
     const logsSlice = filteredLogs.slice(pageStart, pageEnd);
 
-    detectUserScroll.enabled = false;
+    detectUserScroll.current = false;
 
     return logsSlice;
-  }, [filteredLogs, currentPage, detectUserScroll]);
+  }, [filteredLogs, currentPage]);
 
   useEffect(() => {
     if (autoScroll) setPage(Math.max(pages, WINDOW_PAGES_SIZE));
   }, [autoScroll, pages]);
-
-  useEffect(() => {
-    detectUserScroll.enabled = true;
-
-    if (autoScroll)
-      scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
-  }, [logsSlice, autoScroll, scrollRef, detectUserScroll]);
 
   useScrollThreshold(
     () => setPage((p) => (p > WINDOW_PAGES_SIZE ? p - 1 : p)),
@@ -240,7 +237,7 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      if (autoScroll && detectUserScroll.enabled) setAutoScroll(false);
+      if (autoScroll && detectUserScroll.current) setAutoScroll(false);
     },
     [autoScroll],
     scrollRef,
@@ -280,25 +277,46 @@ export const Console: React.FC = () => {
     setShowScrollDownButton(false);
   }, []);
 
+  useDebounceEffect(
+    () => setRenderId((id) => id + 1),
+    [logsSlice, logChunk],
+    STEADY_LOG_DELAY
+  );
+
   const isFiltering = search || selectedType;
+
+  const consoleState = useMemo(
+    () => ({
+      search,
+      selectedType,
+      logs: logsSlice,
+      logChunk: isFiltering ? null : logChunk,
+      baud,
+      deviceInfo: isConnected ? "Connected" : "",
+      logsContainerRef: scrollRef,
+      logTypesCount,
+      showScrollTopButton,
+      showScrollDownButton,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [renderId, isFiltering, isConnected]
+  );
+
+  useEffect(() => {
+    detectUserScroll.current = true;
+
+    if (autoScroll)
+      scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+  }, [consoleState, autoScroll]);
 
   return (
     <ConsoleLayout
-      logs={logsSlice}
-      logChunk={isFiltering ? null : logChunk}
-      logTypesCount={logTypesCount}
-      baud={baud}
-      onBaudChange={handleBaudRateChange}
-      deviceInfo={isConnected ? "Connected" : ""}
-      onClearLogs={handleClearLogs}
-      onConnectionRequestChange={setReadyToConnect}
-      search={search}
+      {...consoleState}
       onSearch={setSearch}
-      selectedType={selectedType}
       onSelectedType={setSelectedType}
-      logsContainerRef={scrollRef}
-      showScrollTopButton={showScrollTopButton}
-      showScrollDownButton={showScrollDownButton}
+      onClearLogs={handleClearLogs}
+      onBaudChange={handleBaudRateChange}
+      onConnectionRequestChange={setReadyToConnect}
       onScrollTopClick={handleScrollTopClick}
       onScrollDownClick={handleScrollDownClick}
     />

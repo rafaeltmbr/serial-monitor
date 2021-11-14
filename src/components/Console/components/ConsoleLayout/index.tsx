@@ -1,5 +1,4 @@
 import React, { memo, MutableRefObject } from "react";
-import { useRenderCount } from "../../../../hooks/RenderCount";
 
 import {
   ILog,
@@ -69,8 +68,6 @@ export const ConsoleLayout: React.FC<IProps> = memo(
       onSelectedType(undefined);
       onClearLogs();
     };
-
-    useRenderCount((count) => console.log("Layout renders", count));
 
     return (
       <Container>

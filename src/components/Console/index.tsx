@@ -38,17 +38,17 @@ export const Console: React.FC = () => {
   const scrollRef = useRef<Element>();
   const detectUserScroll = useMemo(() => ({ enabled: false }), []);
 
-  const handleClearLogs = () => {
+  const handleClearLogs = useCallback(() => {
     setPage(WINDOW_PAGES_SIZE);
     setAutoScroll(true);
     setLogs([]);
     setShowScrollTopButton(false);
     setShowScrollDownButton(false);
-  };
+  }, []);
 
-  const handleBaudRateChange = (value: number) => {
+  const handleBaudRateChange = useCallback((value: number) => {
     setBaud(value);
-  };
+  }, []);
 
   const pushNewLogChunk = useAccumulatorInterval<string | null>(
     (chunks) => {
@@ -268,22 +268,19 @@ export const Console: React.FC = () => {
     scrollRef
   );
 
-  const handleScrollTopClick = () => {
+  const handleScrollTopClick = useCallback(() => {
     setAutoScroll(false);
     setPage(WINDOW_PAGES_SIZE);
     scrollRef.current?.scrollTo(0, 0);
     setShowScrollTopButton(false);
-  };
+  }, []);
 
-  const handleScrollDownClick = () => {
+  const handleScrollDownClick = useCallback(() => {
     setAutoScroll(true);
-    setPage(pages);
     setShowScrollDownButton(false);
-  };
+  }, []);
 
   const isFiltering = search || selectedType;
-
-  console.log("RENDERED", logs.length);
 
   return (
     <ConsoleLayout

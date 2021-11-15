@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import { deepCopy } from "./deepCopy";
 
 type DataCallback<T> = (value: Readonly<T>) => void;
 
@@ -11,13 +12,17 @@ type MixedListenerArgs<T, K extends keyof T> =
 const ALL_KEYS_SYMBOL = "__KEY_VALUE_MANAGER_ALL_KEYS_SYMBOL";
 
 export class KeyValueManager<T> extends EventEmitter {
-  constructor(private data: T) {
+  private data: T;
+
+  constructor(data: T) {
     super();
 
     if (typeof data !== "object") throw new Error("Data must be an object.");
 
     if (Object.keys(data).includes(ALL_KEYS_SYMBOL))
       throw new Error(`${ALL_KEYS_SYMBOL} is an exclusive object key.`);
+
+    this.data = deepCopy(data);
   }
 
   public get(): Readonly<T>;
@@ -30,11 +35,13 @@ export class KeyValueManager<T> extends EventEmitter {
   public set<K extends keyof T>(key: K, value: T[K]): this;
   public set<K extends keyof T>(...args: MixedSetArgs<T, K>) {
     if (args.length === 1) {
-      const keys = Object.keys(this.data).filter(
-        (k) => this.data[k as K] !== args[0][k as K]
-      );
-      this.data = args[0];
-      keys.forEach((k) => this.emit(k, this.data));
+      Object.keys(this.data).forEach((k) => {
+        const key = k as K;
+        if (this.data[key] === args[0][key]) return;
+
+        this.data[key] = args[0][key];
+        this.emit(k, this.data);
+      });
     } else if (this.data[args[0]] !== args[1]) {
       this.data[args[0]] = args[1];
       this.emit(args[0].toString(), this.data);

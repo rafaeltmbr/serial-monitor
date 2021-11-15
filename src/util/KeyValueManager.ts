@@ -34,8 +34,13 @@ export class KeyValueManager<T> extends EventEmitter {
   public set(value: T): this;
   public set<K extends keyof T>(key: K, value: T[K]): this;
   public set<K extends keyof T>(...args: MixedSetArgs<T, K>) {
-    if (args.length === 1) this.data = args[0];
-    else {
+    if (args.length === 1) {
+      Object.keys(this.data).forEach((k) => {
+        const key = k as K;
+        if (this.data[key] !== args[0][key]) this.emit(k, args[0][key], key);
+      });
+      this.data = args[0];
+    } else {
       this.data[args[0]] = args[1];
       this.emit(args[0].toString(), args[1], args[0]);
     }

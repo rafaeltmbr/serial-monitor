@@ -3,4 +3,4 @@ export const baudRates = <const>[
   1200, 600, 300,
 ];
 
-export const defaultBaudRate = 115200;
+export const DEFAULT_BAUD_RATE = 115200;

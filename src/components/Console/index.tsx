@@ -6,12 +6,12 @@ import React, {
   useState,
 } from "react";
 import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
-import { defaultBaudRate } from "../../config/baud";
+import { DEFAULT_BAUD_RATE } from "../../config/baud";
 import { useAccumulatorInterval } from "../../hooks/AccumulatorInterval";
-import { useDebounceEffect } from "../../hooks/DebounceEffect";
 import { useScrollDirection } from "../../hooks/ScrollDirection";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
 import { ILog, LogType } from "../../interfaces/Log/ILog";
+import { KeyValueManager } from "../../util/KeyValueManager";
 import { filterLogAndCount } from "./util/filterLogAndCount";
 import { makeLog } from "./util/makeLog";
 import {
@@ -21,38 +21,54 @@ import {
 
 const LOG_PAGE_SIZE = 30; // 50 logs per page
 const WINDOW_PAGES_SIZE = 3; // 3 * LOG_PAGE_SIZE
-const LOG_REFRESH_TIMEOUT = 200; // 5x per second
-const STEADY_LOG_DELAY = 10;
+const RENDER_REFRESH_INTERVAL = 200; // 5x per second
+
+const initialState = {
+  // original states
+  search: "",
+  selectedType: undefined as LogType | undefined,
+  logs: [] as ILog[],
+  logChunk: null as ILog | null,
+  page: WINDOW_PAGES_SIZE,
+  baud: DEFAULT_BAUD_RATE,
+  readyToConnect: false,
+  isConnected: false,
+  autoScroll: true,
+  showScrollTopButton: false,
+  showScrollDownButton: false,
+};
 
 export const Console: React.FC = () => {
-  const [search, setSearch] = useState("");
-  const [selectedType, setSelectedType] = useState<LogType | undefined>();
-  const [logs, setLogs] = useState<ILog[]>([]);
-  const [logChunk, setLogChunk] = useState<ILog | null>(null);
-  const [page, setPage] = useState(WINDOW_PAGES_SIZE);
-  const [baud, setBaud] = useState(defaultBaudRate);
-  const [readyToConnect, setReadyToConnect] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [autoScroll, setAutoScroll] = useState(true);
-  const [showScrollTopButton, setShowScrollTopButton] = useState(false);
-  const [showScrollDownButton, setShowScrollDownButton] = useState(false);
-  const [renderId, setRenderId] = useState(0);
+  const kvm = useMemo(() => new KeyValueManager(initialState), []);
   const serial = useMemo(() => new SerialConnection(), []);
   const scrollRef = useRef<Element>();
   const detectUserScroll = useRef(false);
+  const setRenderId = useState(0)[1];
 
   const handleClearLogs = useCallback(() => {
-    setPage(WINDOW_PAGES_SIZE);
-    setAutoScroll(true);
-    setLogs([]);
-    setShowScrollTopButton(false);
-    setShowScrollDownButton(false);
+    kvm.set({
+      ...kvm.get(),
+      page: WINDOW_PAGES_SIZE,
+      autoScroll: true,
+      logs: [],
+      showScrollTopButton: false,
+      showScrollDownButton: false,
+    });
     setRenderId((id) => id + 1);
-  }, []);
+  }, [kvm, setRenderId]);
 
-  const handleBaudRateChange = useCallback((value: number) => {
-    setBaud(value);
-  }, []);
+  useEffect(() => {
+    const descriptor = setInterval(() => {
+      setRenderId((id) => id + 1);
+    }, RENDER_REFRESH_INTERVAL);
+
+    return () => clearInterval(descriptor);
+  }, [setRenderId]);
+
+  const handleBaudRateChange = useCallback(
+    (value: number) => kvm.set("baud", value),
+    [kvm]
+  );
 
   const pushNewLogChunk = useAccumulatorInterval<string | null>(
     (chunks) => {
@@ -60,10 +76,10 @@ export const Console: React.FC = () => {
 
       const chunk = makeLog("log", chunkContent || "");
 
-      setLogChunk(chunkContent ? chunk : null);
+      kvm.set("logChunk", chunkContent ? chunk : null);
     },
-    [],
-    LOG_REFRESH_TIMEOUT
+    [kvm],
+    RENDER_REFRESH_INTERVAL
   );
 
   const handleSerialChunk = useCallback(pushNewLogChunk, [pushNewLogChunk]);
@@ -71,10 +87,10 @@ export const Console: React.FC = () => {
   const pushNewLogLine = useAccumulatorInterval<ILog>(
     (accLogs) => {
       pushNewLogChunk(null);
-      setLogs((d) => [...d, ...accLogs]);
+      kvm.set("logs", [...kvm.get("logs"), ...accLogs]);
     },
-    [],
-    LOG_REFRESH_TIMEOUT
+    [kvm],
+    RENDER_REFRESH_INTERVAL
   );
 
   const handleSerialLine = useCallback(
@@ -88,9 +104,9 @@ export const Console: React.FC = () => {
         makeLog("info", `Device ${reused ? "port reopened" : "connected"}`)
       );
 
-      setIsConnected(true);
+      kvm.set("isConnected", true);
     },
-    [pushNewLogLine]
+    [kvm, pushNewLogLine]
   );
 
   const handleSerialDisconnect = useCallback(
@@ -100,31 +116,42 @@ export const Console: React.FC = () => {
       }`;
       const disconnectLog: ILog = makeLog("info", msg);
 
-      let chunk: ILog | null = null;
-
-      setLogChunk((d) => {
-        chunk = d;
-        return d;
-      });
+      const chunk = kvm.get("logChunk");
 
       if (chunk) pushNewLogLine(chunk);
 
       pushNewLogLine(disconnectLog);
       pushNewLogChunk(null);
-      setIsConnected(false);
+      kvm.set("isConnected", true);
 
-      if (status === "disconnected") setReadyToConnect(false);
+      if (status === "disconnected") kvm.set("readyToConnect", false);
     },
-    [pushNewLogChunk, pushNewLogLine]
+    [kvm, pushNewLogChunk, pushNewLogLine]
   );
 
   useEffect(() => {
-    setAutoScroll(isConnected);
-  }, [isConnected]);
+    const handleIsConnectedChange = (isConnected: boolean) => {
+      kvm.set("autoScroll", isConnected);
+    };
+
+    kvm.addChangeListener("isConnected", handleIsConnectedChange);
+
+    return () => {
+      kvm.removeChangeListener("isConnected", handleIsConnectedChange);
+    };
+  }, [kvm]);
 
   useEffect(() => {
-    setPage(WINDOW_PAGES_SIZE);
-  }, [search, selectedType]);
+    const handleFilterChange = () => kvm.set("page", WINDOW_PAGES_SIZE);
+
+    kvm.addChangeListener("page", handleFilterChange);
+    kvm.addChangeListener("selectedType", handleFilterChange);
+
+    return () => {
+      kvm.removeChangeListener("page", handleFilterChange);
+      kvm.removeChangeListener("selectedType", handleFilterChange);
+    };
+  }, [kvm]);
 
   useEffect(() => {
     serial.addListener("chunk", handleSerialChunk);
@@ -147,38 +174,50 @@ export const Console: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (!readyToConnect) return;
-
-    const connect = async () => {
+    const handleConnectionChange = async () => {
       try {
+        const { readyToConnect, baud } = kvm.get();
+
+        if (!readyToConnect) return;
+
         await serial.connect({ baudRate: baud });
       } catch (err: unknown) {
         pushNewLogLine(makeLog("info", (err as Error).message));
 
-        setReadyToConnect(false);
+        kvm.set("readyToConnect", false);
       }
     };
 
-    connect();
-  }, [readyToConnect, baud, serial, pushNewLogLine]);
+    kvm.addChangeListener(handleConnectionChange);
+
+    return () => {
+      kvm.removeChangeListener(handleConnectionChange);
+    };
+  }, [kvm, serial, pushNewLogLine]);
 
   useEffect(() => {
-    if (readyToConnect) return;
+    const handleReadyToConnect = async (readyToConnect: boolean) => {
+      if (!readyToConnect) await serial.disconnect();
+    };
 
-    serial.disconnect();
-  }, [readyToConnect, serial]);
+    kvm.addChangeListener("readyToConnect", handleReadyToConnect);
 
-  const [filteredLogs, logTypesCount] = useMemo(
-    () => filterLogAndCount(logs, search, selectedType),
-    [logs, search, selectedType]
-  );
+    return () => {
+      kvm.removeChangeListener("readyToConnect", handleReadyToConnect);
+    };
+  }, [kvm, serial]);
+
+  const [filteredLogs, logTypesCount] = useMemo(() => {
+    const { logs, search, selectedType } = kvm.get();
+    return filterLogAndCount(logs, search, selectedType);
+  }, [kvm]);
 
   const pages = Math.max(
     Math.ceil(filteredLogs.length / LOG_PAGE_SIZE),
     WINDOW_PAGES_SIZE
   );
 
-  const currentPage = autoScroll ? pages : page;
+  const currentPage = kvm.get("autoScroll") ? pages : kvm.get("page");
 
   const logsSlice = useMemo(() => {
     const pageStart = (currentPage - WINDOW_PAGES_SIZE) * LOG_PAGE_SIZE;
@@ -192,32 +231,52 @@ export const Console: React.FC = () => {
   }, [filteredLogs, currentPage]);
 
   useEffect(() => {
-    if (autoScroll) setPage(Math.max(pages, WINDOW_PAGES_SIZE));
-  }, [autoScroll, pages]);
+    const handleAutoScrollChange = (autoScroll: boolean) => {
+      if (autoScroll) kvm.set("page", Math.max(pages, WINDOW_PAGES_SIZE));
+    };
+
+    kvm.addChangeListener("autoScroll", handleAutoScrollChange);
+
+    return () => {
+      kvm.removeChangeListener("autoScroll", handleAutoScrollChange);
+    };
+  }, [kvm, pages]);
 
   useScrollThreshold(
-    () => setPage((p) => (p > WINDOW_PAGES_SIZE ? p - 1 : p)),
+    () => {
+      const p = kvm.get("page");
+      kvm.set("page", p > WINDOW_PAGES_SIZE ? p - 1 : p);
+    },
     [],
     scrollRef,
     { offset: { top: { min: 500 } } }
   );
 
   useScrollThreshold(
-    () => setPage((p) => (p > WINDOW_PAGES_SIZE ? p - 1 : p)),
+    () => {
+      const p = kvm.get("page");
+      kvm.set("page", p > WINDOW_PAGES_SIZE ? p - 1 : p);
+    },
     [],
     scrollRef,
     { offset: { top: { min: 100 } } }
   );
 
   useScrollThreshold(
-    () => setPage((p) => (p < pages ? p + 1 : p)),
+    () => {
+      const p = kvm.get("page");
+      kvm.set("page", p < pages ? p + 1 : p);
+    },
     [pages],
     scrollRef,
     { offset: { bottom: { min: 500 } } }
   );
 
   useScrollThreshold(
-    () => setPage((p) => (p < pages ? p + 1 : p)),
+    () => {
+      const p = kvm.get("page");
+      kvm.set("page", p < pages ? p + 1 : p);
+    },
     [pages],
     scrollRef,
     { offset: { bottom: { min: 100 } } }
@@ -225,98 +284,144 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
+      const page = kvm.get("page");
+
       if (page === Math.max(pages, WINDOW_PAGES_SIZE)) {
-        setAutoScroll(true);
-        setShowScrollDownButton(false);
+        kvm.set("autoScroll", true);
+        kvm.set("showScrollDownButton", false);
       }
     },
-    [page, pages, autoScroll],
+    [pages],
     scrollRef,
     { offset: { bottom: { min: 100 } } }
   );
 
   useScrollThreshold(
     () => {
-      if (autoScroll && detectUserScroll.current) setAutoScroll(false);
+      if (kvm.get("autoScroll") && detectUserScroll.current)
+        kvm.set("autoScroll", false);
     },
-    [autoScroll],
+    [],
     scrollRef,
     { offset: { bottom: { max: 1 } } }
   );
 
   useScrollThreshold(
     () => {
-      setShowScrollTopButton(false);
+      const handleAutoScrollChange = () =>
+        kvm.set("showScrollTopButton", false);
+
+      kvm.addChangeListener("autoScroll", handleAutoScrollChange);
+
+      return () => {
+        kvm.removeChangeListener("autoScroll", handleAutoScrollChange);
+      };
     },
-    [autoScroll],
+    [],
     scrollRef,
     { offset: { top: { min: 50 } } }
   );
 
   useScrollDirection(
-    (direction) => setShowScrollTopButton(direction.y < 0),
+    (direction) => kvm.set("showScrollTopButton", direction.y < 0),
     [],
     scrollRef
   );
 
   useScrollDirection(
-    (direction) => setShowScrollDownButton(direction.y > 0 && !autoScroll),
-    [autoScroll],
+    (direction) =>
+      kvm.set(
+        "showScrollDownButton",
+        direction.y > 0 && !kvm.get("autoScroll")
+      ),
+    [],
     scrollRef
   );
 
   const handleScrollTopClick = useCallback(() => {
-    setAutoScroll(false);
-    setPage(WINDOW_PAGES_SIZE);
+    kvm.set({
+      ...kvm.get(),
+      autoScroll: false,
+      page: WINDOW_PAGES_SIZE,
+      showScrollTopButton: false,
+    });
+
     scrollRef.current?.scrollTo(0, 0);
-    setShowScrollTopButton(false);
-  }, []);
+  }, [kvm]);
 
   const handleScrollDownClick = useCallback(() => {
-    setAutoScroll(true);
-    setShowScrollDownButton(false);
-  }, []);
+    kvm.set({
+      ...kvm.get(),
+      autoScroll: true,
+      showScrollDownButton: false,
+    });
+  }, [kvm]);
 
-  useDebounceEffect(
-    () => setRenderId((id) => id + 1),
-    [logsSlice, logChunk],
-    STEADY_LOG_DELAY
+  useEffect(() => {
+    const handleAutoScroll = (autoScroll: boolean) => {
+      detectUserScroll.current = true;
+
+      if (autoScroll)
+        scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+    };
+
+    kvm.addChangeListener("autoScroll", handleAutoScroll);
+
+    return () => {
+      kvm.removeChangeListener("autoScroll", handleAutoScroll);
+    };
+  }, [kvm]);
+
+  const handleSearch = useCallback(
+    (value: string) => {
+      kvm.set("search", value);
+    },
+    [kvm]
   );
+
+  const handleSelectedType = useCallback(
+    (value: LogType | undefined) => {
+      kvm.set("selectedType", value);
+    },
+    [kvm]
+  );
+
+  const handleReadyToConnect = useCallback(
+    (value: boolean) => {
+      kvm.set("readyToConnect", value);
+    },
+    [kvm]
+  );
+
+  const {
+    search,
+    selectedType,
+    logChunk,
+    baud,
+    isConnected,
+    showScrollTopButton,
+    showScrollDownButton,
+  } = kvm.get();
 
   const isFiltering = search || selectedType;
 
-  const consoleState = useMemo(
-    () => ({
-      search,
-      selectedType,
-      logs: logsSlice,
-      logChunk: isFiltering ? null : logChunk,
-      baud,
-      deviceInfo: isConnected ? "Connected" : "",
-      logsContainerRef: scrollRef,
-      logTypesCount,
-      showScrollTopButton,
-      showScrollDownButton,
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [renderId, isFiltering, isConnected]
-  );
-
-  useEffect(() => {
-    detectUserScroll.current = true;
-
-    if (autoScroll)
-      scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
-  }, [consoleState, autoScroll]);
-
   return (
     <ConsoleLayout
-      {...consoleState}
-      onSearch={setSearch}
-      onSelectedType={setSelectedType}
+      search={search}
+      selectedType={selectedType}
+      logs={logsSlice}
+      logChunk={isFiltering ? null : logChunk}
+      baud={baud}
+      deviceInfo={isConnected ? "Connected" : ""}
+      logsContainerRef={scrollRef}
+      logTypesCount={logTypesCount}
+      showScrollTopButton={showScrollTopButton}
+      showScrollDownButton={showScrollDownButton}
+      onSearch={handleSearch}
+      onSelectedType={handleSelectedType}
       onClearLogs={handleClearLogs}
       onBaudChange={handleBaudRateChange}
-      onConnectionRequestChange={setReadyToConnect}
+      onConnectionRequestChange={handleReadyToConnect}
       onScrollTopClick={handleScrollTopClick}
       onScrollDownClick={handleScrollDownClick}
     />

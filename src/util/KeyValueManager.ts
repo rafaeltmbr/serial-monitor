@@ -2,16 +2,11 @@ import { EventEmitter } from "events";
 
 type DataCallback<T> = (value: Readonly<T>) => void;
 
-type ValueCallback<T, K extends keyof T> = (
-  value: Readonly<T[K]>,
-  key: K
-) => void;
-
 type MixedSetArgs<T, K extends keyof T> = [T] | [K, T[K]];
 
 type MixedListenerArgs<T, K extends keyof T> =
   | [DataCallback<T>]
-  | [K, ValueCallback<T, K>];
+  | [K, DataCallback<T>];
 
 const ALL_KEYS_SYMBOL = "__KEY_VALUE_MANAGER_ALL_KEYS_SYMBOL";
 
@@ -35,14 +30,14 @@ export class KeyValueManager<T> extends EventEmitter {
   public set<K extends keyof T>(key: K, value: T[K]): this;
   public set<K extends keyof T>(...args: MixedSetArgs<T, K>) {
     if (args.length === 1) {
-      Object.keys(this.data).forEach((k) => {
-        const key = k as K;
-        if (this.data[key] !== args[0][key]) this.emit(k, args[0][key], key);
-      });
+      const keys = Object.keys(this.data).filter(
+        (k) => this.data[k as K] !== args[0][k as K]
+      );
       this.data = args[0];
-    } else {
+      keys.forEach((k) => this.emit(k, this.data));
+    } else if (this.data[args[0]] !== args[1]) {
       this.data[args[0]] = args[1];
-      this.emit(args[0].toString(), args[1], args[0]);
+      this.emit(args[0].toString(), this.data);
     }
 
     this.emit(ALL_KEYS_SYMBOL, this.data);
@@ -53,7 +48,7 @@ export class KeyValueManager<T> extends EventEmitter {
   public addChangeListener(callback: DataCallback<T>): this;
   public addChangeListener<K extends keyof T>(
     key: K,
-    callback: ValueCallback<T, K>
+    callback: DataCallback<T>
   ): this;
   public addChangeListener<K extends keyof T>(
     ...args: MixedListenerArgs<T, K>
@@ -67,7 +62,7 @@ export class KeyValueManager<T> extends EventEmitter {
   public removeChangeListener(callback: DataCallback<T>): this;
   public removeChangeListener<K extends keyof T>(
     key: K,
-    callback: ValueCallback<T, K>
+    callback: DataCallback<T>
   ): this;
   public removeChangeListener<K extends keyof T>(
     ...args: MixedListenerArgs<T, K>

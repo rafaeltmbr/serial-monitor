@@ -10,14 +10,17 @@ export const serialConnectionStatus = <const>[
 
 export type SerialConnectionStatus = typeof serialConnectionStatus[number];
 
+const DEFAULT_MAXIMUM_CHUNK_LENGTH = 256;
 export class SerialConnection extends EventEmitter {
+  private maxChunkLength: number;
   private port: SerialPort | null;
   private reader: ReadableStreamDefaultReader<Uint8Array> | null;
   private status: SerialConnectionStatus;
 
-  constructor() {
+  constructor(maxChunkLength?: number) {
     super();
 
+    this.maxChunkLength = maxChunkLength || DEFAULT_MAXIMUM_CHUNK_LENGTH;
     this.port = null;
     this.reader = null;
     this.status = "disconnected";
@@ -128,6 +131,9 @@ export class SerialConnection extends EventEmitter {
           messages.slice(0, -1).forEach((msg) => this.emit("line", msg));
 
           strBuffer = messages.pop() || "";
+        } else if (strBuffer.length > this.maxChunkLength) {
+          this.emit("line", strBuffer);
+          strBuffer = "";
         }
       }
 

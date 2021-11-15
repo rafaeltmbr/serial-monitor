@@ -1,7 +1,7 @@
 export function deepCopy<T>(e: T): T {
   if (Array.isArray(e)) return e.map((i) => deepCopy(i)) as unknown as T;
 
-  if (typeof e !== "object") return e;
+  if (typeof e !== "object" || !e) return e;
 
   const newObj = {} as T;
 

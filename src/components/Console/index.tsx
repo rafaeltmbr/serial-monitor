@@ -37,8 +37,6 @@ const initialState = {
   showScrollDownButton: false,
 };
 
-type State = typeof initialState;
-
 export const Console: React.FC = () => {
   const kvm = useMemo(() => new KeyValueManager(initialState), []);
   const serial = useMemo(() => new SerialConnection(), []);
@@ -55,32 +53,30 @@ export const Console: React.FC = () => {
   }, []);
 
   const handleClearLogs = useCallback(() => {
-    kvm.set({
-      ...kvm.get(),
-      page: WINDOW_PAGES_SIZE,
-      autoScroll: true,
-      logs: [],
-      showScrollTopButton: false,
-      showScrollDownButton: false,
-    });
+    kvm.page = WINDOW_PAGES_SIZE;
+    kvm.autoScroll = true;
+    kvm.logs = [];
+    kvm.showScrollTopButton = false;
+    kvm.showScrollDownButton = false;
+
     setRenderId((id) => id + 1);
   }, [kvm]);
 
   const handleBaudRateChange = useCallback(
-    (value: number) => kvm.set("baud", value),
+    (value: number) => (kvm.baud = value),
     [kvm]
   );
 
   const handleSerialChunk = useCallback(
     (content: string | null) =>
-      kvm.set("logChunk", content ? makeLog("log", content) : null),
+      (kvm.logChunk = content ? makeLog("log", content) : null),
     [kvm]
   );
 
   const pushNewLogLine = useCallback(
     (log: ILog) => {
-      kvm.set("logChunk", null);
-      kvm.set("logs", [...kvm.get("logs"), log]);
+      kvm.logChunk = null;
+      kvm.logs = [...kvm.logs, log];
     },
     [kvm]
   );
@@ -96,7 +92,7 @@ export const Console: React.FC = () => {
         makeLog("info", `Device ${reused ? "port reopened" : "connected"}`)
       );
 
-      kvm.set("isConnected", true);
+      kvm.isConnected = true;
     },
     [kvm, pushNewLogLine]
   );
@@ -108,23 +104,21 @@ export const Console: React.FC = () => {
       }`;
       const disconnectLog: ILog = makeLog("info", msg);
 
-      const chunk = kvm.get("logChunk");
-
-      if (chunk) pushNewLogLine(chunk);
+      if (kvm.logChunk) pushNewLogLine(kvm.logChunk);
 
       pushNewLogLine(disconnectLog);
-      kvm.set("logChunk", null);
-      kvm.set("isConnected", false);
-      kvm.set("autoScroll", true);
+      kvm.logChunk = null;
+      kvm.isConnected = false;
+      kvm.autoScroll = true;
 
-      if (status === "disconnected") kvm.set("readyToConnect", false);
+      if (status === "disconnected") kvm.readyToConnect = false;
     },
     [kvm, pushNewLogLine]
   );
 
   useEffect(() => {
-    const handleIsConnectedChange = ({ isConnected }: State) => {
-      kvm.set("autoScroll", isConnected);
+    const handleIsConnectedChange = () => {
+      kvm.autoScroll = kvm.isConnected;
     };
 
     kvm.addChangeListener("isConnected", handleIsConnectedChange);
@@ -135,7 +129,11 @@ export const Console: React.FC = () => {
   }, [kvm]);
 
   useEffect(() => {
-    const handleFilterChange = () => kvm.set("page", WINDOW_PAGES_SIZE);
+    const handleFilterChange = () => {
+      kvm.page = WINDOW_PAGES_SIZE;
+      kvm.showScrollDownButton = false;
+      kvm.showScrollTopButton = false;
+    };
 
     kvm.addChangeListener("search", handleFilterChange);
     kvm.addChangeListener("selectedType", handleFilterChange);
@@ -167,15 +165,15 @@ export const Console: React.FC = () => {
   ]);
 
   useEffect(() => {
-    const handleConnectionChange = async ({ readyToConnect, baud }: State) => {
+    const handleConnectionChange = async () => {
       try {
-        if (!readyToConnect) return;
+        if (!kvm.readyToConnect) return;
 
-        await serial.connect({ baudRate: baud });
+        await serial.connect({ baudRate: kvm.baud });
       } catch (err: unknown) {
         pushNewLogLine(makeLog("info", (err as Error).message));
 
-        kvm.set("readyToConnect", false);
+        kvm.readyToConnect = false;
       }
     };
 
@@ -189,8 +187,8 @@ export const Console: React.FC = () => {
   }, [kvm, serial, pushNewLogLine]);
 
   useEffect(() => {
-    const handleReadyToConnect = async ({ readyToConnect }: State) => {
-      if (!readyToConnect) await serial.disconnect();
+    const handleReadyToConnect = async () => {
+      if (!kvm.readyToConnect) await serial.disconnect();
     };
 
     kvm.addChangeListener("readyToConnect", handleReadyToConnect);
@@ -200,11 +198,10 @@ export const Console: React.FC = () => {
     };
   }, [kvm, serial]);
 
-  const [filteredLogs, logTypesCount] = useMemo(() => {
-    const { logs, search, selectedType } = kvm.get();
-    return filterLogAndCount(logs, search, selectedType);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kvm, renderId]);
+  const [filteredLogs, logTypesCount] = useMemo(
+    () => filterLogAndCount(kvm.logs, kvm.search, kvm.selectedType),
+    [kvm.logs, kvm.search, kvm.selectedType]
+  );
 
   const pages = Math.max(
     Math.ceil(filteredLogs.length / LOG_PAGE_SIZE),
@@ -213,20 +210,20 @@ export const Console: React.FC = () => {
 
   const lastPage = Math.max(pages, WINDOW_PAGES_SIZE);
 
-  if (kvm.get("autoScroll")) kvm.set("page", lastPage);
+  if (kvm.autoScroll) kvm.page = lastPage;
 
   const logsSlice = useMemo(() => {
-    const pageStart = (kvm.get("page") - WINDOW_PAGES_SIZE) * LOG_PAGE_SIZE;
+    const pageStart = (kvm.page - WINDOW_PAGES_SIZE) * LOG_PAGE_SIZE;
     const pageEnd = pageStart + WINDOW_PAGES_SIZE * LOG_PAGE_SIZE;
 
     const logsSlice = filteredLogs.slice(pageStart, pageEnd);
 
     return logsSlice;
-  }, [kvm, filteredLogs]);
+  }, [kvm.page, filteredLogs]);
 
   useEffect(() => {
-    const handleAutoScrollChange = ({ autoScroll }: State) => {
-      if (autoScroll) kvm.set("page", lastPage);
+    const handleAutoScrollChange = () => {
+      if (kvm.autoScroll) kvm.page = lastPage;
     };
 
     kvm.addChangeListener("autoScroll", handleAutoScrollChange);
@@ -238,8 +235,8 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      const p = kvm.get("page");
-      kvm.set("page", p > WINDOW_PAGES_SIZE ? p - 1 : p);
+      const p = kvm.page;
+      kvm.page = p > WINDOW_PAGES_SIZE ? p - 1 : p;
     },
     [],
     scrollRef,
@@ -248,8 +245,8 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      const p = kvm.get("page");
-      kvm.set("page", p > WINDOW_PAGES_SIZE ? p - 1 : p);
+      const p = kvm.page;
+      kvm.page = p > WINDOW_PAGES_SIZE ? p - 1 : p;
     },
     [],
     scrollRef,
@@ -258,8 +255,8 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      const p = kvm.get("page");
-      kvm.set("page", p < pages ? p + 1 : p);
+      const p = kvm.page;
+      kvm.page = p < pages ? p + 1 : p;
     },
     [pages],
     scrollRef,
@@ -268,8 +265,8 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      const p = kvm.get("page");
-      kvm.set("page", p < pages ? p + 1 : p);
+      const p = kvm.page;
+      kvm.page = p < pages ? p + 1 : p;
     },
     [pages],
     scrollRef,
@@ -278,11 +275,11 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      const page = kvm.get("page");
+      const page = kvm.page;
 
       if (page === lastPage) {
-        kvm.set("autoScroll", true);
-        kvm.set("showScrollDownButton", false);
+        kvm.autoScroll = true;
+        kvm.showScrollDownButton = false;
       }
     },
     [lastPage],
@@ -292,8 +289,7 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      if (kvm.get("autoScroll") && detectUserScroll.current)
-        kvm.set("autoScroll", false);
+      if (kvm.autoScroll && detectUserScroll.current) kvm.autoScroll = false;
     },
     [],
     scrollRef,
@@ -302,7 +298,7 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      kvm.set("showScrollTopButton", false);
+      kvm.showScrollTopButton = false;
     },
     [],
     scrollRef,
@@ -310,43 +306,34 @@ export const Console: React.FC = () => {
   );
 
   useScrollDirection(
-    (direction) => kvm.set("showScrollTopButton", direction.y < 0),
+    (direction) => (kvm.showScrollTopButton = direction.y < 0),
     [],
     scrollRef
   );
 
   useScrollDirection(
     (direction) =>
-      kvm.set(
-        "showScrollDownButton",
-        direction.y > 0 && !kvm.get("autoScroll")
-      ),
+      (kvm.showScrollDownButton = direction.y > 0 && !kvm.autoScroll),
     [],
     scrollRef
   );
 
   const handleScrollTopClick = useCallback(() => {
-    kvm.set({
-      ...kvm.get(),
-      autoScroll: false,
-      page: WINDOW_PAGES_SIZE,
-      showScrollTopButton: false,
-    });
+    kvm.autoScroll = false;
+    kvm.page = WINDOW_PAGES_SIZE;
+    kvm.showScrollTopButton = false;
 
     scrollRef.current?.scrollTo(0, 0);
   }, [kvm]);
 
   const handleScrollDownClick = useCallback(() => {
-    kvm.set({
-      ...kvm.get(),
-      autoScroll: true,
-      showScrollDownButton: false,
-    });
+    kvm.autoScroll = true;
+    kvm.showScrollDownButton = false;
   }, [kvm]);
 
   const handleSearch = useCallback(
     (value: string) => {
-      kvm.set("search", value);
+      kvm.search = value;
       setRenderId((id) => id + 1);
     },
     [kvm]
@@ -354,54 +341,44 @@ export const Console: React.FC = () => {
 
   const handleSelectedType = useCallback(
     (value: LogType | undefined) => {
-      kvm.set("selectedType", value);
+      kvm.selectedType = value;
       setRenderId((id) => id + 1);
     },
     [kvm]
   );
 
   const handleReadyToConnect = useCallback(
-    (value: boolean) => kvm.set("readyToConnect", value),
+    (value: boolean) => (kvm.readyToConnect = value),
     [kvm]
   );
 
   useEffect(() => {
     detectUserScroll.current = true;
 
-    if (kvm.get("autoScroll"))
+    if (kvm.autoScroll)
       scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
   }, [kvm, renderId]);
 
   detectUserScroll.current = false;
 
-  console.log(`${kvm.get("page")} / ${pages}`);
+  console.log(`${kvm.page} / ${pages}`);
 
-  const {
-    search,
-    selectedType,
-    logChunk,
-    baud,
-    isConnected,
-    showScrollTopButton,
-    showScrollDownButton,
-  } = kvm.get();
-
-  const isFiltering = search || selectedType;
+  const isFiltering = kvm.search || kvm.selectedType;
 
   useRenderCount((count) => console.log(`UI Render: ${count}`));
 
   return (
     <ConsoleLayout
-      search={search}
-      selectedType={selectedType}
+      search={kvm.search}
+      selectedType={kvm.selectedType}
       logs={logsSlice}
-      logChunk={isFiltering ? null : logChunk}
-      baud={baud}
-      deviceInfo={isConnected ? "Connected" : ""}
+      logChunk={isFiltering ? null : kvm.logChunk}
+      baud={kvm.baud}
+      deviceInfo={kvm.isConnected ? "Connected" : ""}
       logsContainerRef={scrollRef}
       logTypesCount={logTypesCount}
-      showScrollTopButton={showScrollTopButton}
-      showScrollDownButton={showScrollDownButton}
+      showScrollTopButton={kvm.showScrollTopButton}
+      showScrollDownButton={kvm.showScrollDownButton}
       onSearch={handleSearch}
       onSelectedType={handleSelectedType}
       onClearLogs={handleClearLogs}

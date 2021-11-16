@@ -3,15 +3,13 @@ import { deepCopy } from "./deepCopy";
 
 type DataCallback<T> = (value: Readonly<T>) => void;
 
-type MixedSetArgs<T, K extends keyof T> = [T] | [K, T[K]];
-
 type MixedListenerArgs<T, K extends keyof T> =
   | [DataCallback<T>]
   | [K, DataCallback<T>];
 
 const ALL_KEYS_SYMBOL = "__KEY_VALUE_MANAGER_ALL_KEYS_SYMBOL";
 
-export class KeyValueManager<T> extends EventEmitter {
+class _KeyValueManager<T> extends EventEmitter {
   private data: T;
 
   constructor(data: T) {
@@ -19,37 +17,26 @@ export class KeyValueManager<T> extends EventEmitter {
 
     if (typeof data !== "object") throw new Error("Data must be an object.");
 
-    if (Object.keys(data).includes(ALL_KEYS_SYMBOL))
-      throw new Error(`${ALL_KEYS_SYMBOL} is an exclusive object key.`);
-
     this.data = deepCopy(data);
-  }
 
-  public get(): Readonly<T>;
-  public get<K extends keyof T>(key: K): Readonly<T[K]>;
-  public get<K extends keyof T>(key?: K): Readonly<T> | Readonly<T[K]> {
-    return key === undefined ? this.data : this.data[key];
-  }
+    Object.keys(this.data).forEach((k) => {
+      const key = k as keyof T;
 
-  public set(value: T): this;
-  public set<K extends keyof T>(key: K, value: T[K]): this;
-  public set<K extends keyof T>(...args: MixedSetArgs<T, K>) {
-    if (args.length === 1) {
-      Object.keys(this.data).forEach((k) => {
-        const key = k as K;
-        if (this.data[key] === args[0][key]) return;
+      if (k === ALL_KEYS_SYMBOL)
+        throw new Error(`${ALL_KEYS_SYMBOL} is an exclusive object key.`);
 
-        this.data[key] = args[0][key];
-        this.emit(k, this.data);
+      Object.defineProperty(this, k, {
+        get: () => {
+          return this.data[key];
+        },
+
+        set: (value: T[keyof T]) => {
+          this.data[key] = value;
+          this.emit(k.toString(), this.data);
+          return this.data[key];
+        },
       });
-    } else if (this.data[args[0]] !== args[1]) {
-      this.data[args[0]] = args[1];
-      this.emit(args[0].toString(), this.data);
-    }
-
-    this.emit(ALL_KEYS_SYMBOL, this.data);
-
-    return this;
+    });
   }
 
   public addChangeListener(callback: DataCallback<T>): this;
@@ -80,3 +67,9 @@ export class KeyValueManager<T> extends EventEmitter {
     return this;
   }
 }
+
+type KeyValueManager<T> = _KeyValueManager<T> & T;
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const KeyValueManager: new <T>(data: T) => KeyValueManager<T> =
+  _KeyValueManager as any;

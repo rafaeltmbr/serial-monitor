@@ -19,4 +19,4 @@ List of all tasks that should be done before the first release.
 ### performance
 - [x] Implement the window technique in order to support big log lists (i.e. lists with 50+ logs).
 - [x] Render logs at a fixed rate to prevent crashing on high speed incoming data.
-- [ ] Improve search performance by searching small log blocks on each render.
+- [x] Improve search performance by searching small log blocks on each render.

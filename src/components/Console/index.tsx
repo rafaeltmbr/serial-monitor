@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
 import { DEFAULT_BAUD_RATE } from "../../config/baud";
-import { useRenderCount } from "../../hooks/RenderCount";
 import { useScrollDirection } from "../../hooks/ScrollDirection";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
 import { ILog, ILogCountByType, LogType } from "../../interfaces/Log/ILog";
@@ -23,6 +22,16 @@ import {
 const LOG_PAGE_SIZE = 30; // 50 logs per page
 const WINDOW_PAGES_SIZE = 3; // 3 * LOG_PAGE_SIZE
 const RENDER_REFRESH_INTERVAL = 200; // 5x per second
+const MAX_CHARACTERS_BY_FILTER = 100000;
+
+const cleanLogCount = {
+  log: 0,
+  error: 0,
+  warn: 0,
+  info: 0,
+  command: 0,
+  send: 0,
+} as ILogCountByType;
 
 const initialState = {
   search: "",
@@ -36,14 +45,10 @@ const initialState = {
   autoScroll: true,
   showScrollTopButton: false,
   showScrollDownButton: false,
-  logTypesCount: {
-    log: 0,
-    error: 0,
-    warn: 0,
-    info: 0,
-    command: 0,
-    send: 0,
-  } as ILogCountByType,
+  logTypesCount: { ...cleanLogCount },
+  filteredIndex: 0,
+  filteredLogs: [] as ILog[],
+  filteredLogTypesCount: { ...cleanLogCount },
 };
 
 export const Console: React.FC = () => {
@@ -67,10 +72,7 @@ export const Console: React.FC = () => {
     kvm.logs = [];
     kvm.showScrollTopButton = false;
     kvm.showScrollDownButton = false;
-
-    for (const key in kvm.logTypesCount) {
-      kvm.logTypesCount[key as keyof ILogCountByType] = 0;
-    }
+    kvm.logTypesCount = { ...cleanLogCount };
 
     setRenderId((id) => id + 1);
   }, [kvm]);
@@ -212,21 +214,40 @@ export const Console: React.FC = () => {
     };
   }, [kvm, serial]);
 
-  let filteredLogs = kvm.logs;
-  let filteredLogTypesCount = kvm.logTypesCount;
+  useMemo(() => {
+    kvm.filteredIndex = 0;
+    kvm.filteredLogs = [];
+    kvm.filteredLogTypesCount = { ...cleanLogCount };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kvm.search, kvm.selectedType, kvm]);
+
+  useMemo(() => {
+    if (!kvm.search && !kvm.selectedType) return;
+
+    const { filtered, count, endIndex } = filterLogAndCount({
+      logs: kvm.logs,
+      search: kvm.search,
+      type: kvm.selectedType,
+      startIndex: kvm.filteredIndex,
+      maxCharCount: MAX_CHARACTERS_BY_FILTER,
+    });
+
+    kvm.filteredIndex = endIndex;
+    kvm.filteredLogs.push(...filtered);
+
+    for (const k in count) {
+      const key = k as keyof ILogCountByType;
+      kvm.filteredLogTypesCount[key] += count[key];
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderId, kvm]);
 
   const isFiltering = !!(kvm.search || kvm.selectedType);
 
-  if (isFiltering) {
-    const { filtered, count } = filterLogAndCount(
-      kvm.logs,
-      kvm.search,
-      kvm.selectedType
-    );
-
-    filteredLogs = filtered;
-    filteredLogTypesCount = count;
-  }
+  let filteredLogs = isFiltering ? kvm.filteredLogs : kvm.logs;
+  let filteredLogTypesCount = isFiltering
+    ? kvm.filteredLogTypesCount
+    : kvm.logTypesCount;
 
   const pages = Math.max(
     Math.ceil(filteredLogs.length / LOG_PAGE_SIZE),
@@ -377,8 +398,7 @@ export const Console: React.FC = () => {
 
   detectUserScroll.current = false;
 
-  console.log(`${kvm.page} / ${pages}`);
-  useRenderCount((count) => console.log(`UI Render: ${count}`));
+  //console.log(`${kvm.page} / ${pages}`);
 
   return (
     <ConsoleLayout

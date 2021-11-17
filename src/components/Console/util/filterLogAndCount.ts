@@ -6,31 +6,51 @@ import {
 } from "../../../interfaces/Log/ILog";
 import { containString } from "../../../util/containString";
 
-type FuncType = (
-  logs: ILog[],
-  search: string,
-  type?: LogType
-) => IFilteredAndCount;
+type FuncType = (params: IParams) => IResponse;
 
-interface IFilteredAndCount {
-  filtered: ILog[];
-  count: ILogCountByType;
+interface IParams {
+  logs: ILog[];
+  search: string;
+  type?: LogType;
+  startIndex: number;
+  maxCharCount: number;
 }
 
-export const filterLogAndCount: FuncType = (logs, search, type) => {
+interface IResponse {
+  filtered: ILog[];
+  count: ILogCountByType;
+  endIndex: number;
+}
+
+export const filterLogAndCount: FuncType = ({
+  logs,
+  search,
+  type,
+  startIndex,
+  maxCharCount,
+}) => {
   const count = {} as ILogCountByType;
   logTypes.forEach((type) => (count[type] = 0));
 
-  const shouldFilter = search || type;
+  const filtered = [] as ILog[];
 
-  const filtered = logs.filter((log) => {
-    if (shouldFilter && !containString({ source: log.content, search }))
-      return false;
+  let i = startIndex;
 
+  for (
+    let len = logs.length, charCount = 0;
+    i < len && charCount < maxCharCount;
+    i += 1
+  ) {
+    const log = logs[i];
+
+    if (type && type !== log.type) continue;
+
+    if (search && !containString({ source: log.content, search })) continue;
+
+    filtered.push(log);
     count[log.type] += 1;
+    charCount += log.content.length;
+  }
 
-    return !type || log.type === type;
-  });
-
-  return { filtered, count };
+  return { filtered, count, endIndex: i };
 };

@@ -57,13 +57,13 @@ export const ConsoleLayout: React.FC<IProps> = ({
   const [selectedType, setSelectedType] = useState<LogType | undefined>();
 
   const handleSearchClear = () => {
-    setSearch("");
-    setSelectedType(undefined);
+    handleSearchChange("");
+    handleSelectedTypeChange(undefined);
   };
 
   const handleClearLogs = () => {
-    setSearch("");
-    setSelectedType(undefined);
+    handleSearchChange("");
+    handleSelectedTypeChange(undefined);
     onClearLogs();
   };
 

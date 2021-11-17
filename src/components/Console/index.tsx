@@ -7,10 +7,9 @@ import React, {
 } from "react";
 import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
 import { DEFAULT_BAUD_RATE } from "../../config/baud";
-import { useRenderCount } from "../../hooks/RenderCount";
 import { useScrollDirection } from "../../hooks/ScrollDirection";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
-import { ILog, LogType } from "../../interfaces/Log/ILog";
+import { ILog, ILogCountByType, LogType } from "../../interfaces/Log/ILog";
 import { KeyValueManager } from "../../util/KeyValueManager";
 import { filterLogAndCount } from "./util/filterLogAndCount";
 import { makeLog } from "./util/makeLog";
@@ -35,6 +34,14 @@ const initialState = {
   autoScroll: true,
   showScrollTopButton: false,
   showScrollDownButton: false,
+  logTypesCount: {
+    log: 0,
+    error: 0,
+    warn: 0,
+    info: 0,
+    command: 0,
+    send: 0,
+  } as ILogCountByType,
 };
 
 export const Console: React.FC = () => {
@@ -59,6 +66,10 @@ export const Console: React.FC = () => {
     kvm.showScrollTopButton = false;
     kvm.showScrollDownButton = false;
 
+    for (const key in kvm.logTypesCount) {
+      kvm.logTypesCount[key as keyof ILogCountByType] = 0;
+    }
+
     setRenderId((id) => id + 1);
   }, [kvm]);
 
@@ -77,6 +88,7 @@ export const Console: React.FC = () => {
     (log: ILog) => {
       kvm.logChunk = null;
       kvm.logs.push(log);
+      kvm.logTypesCount[log.type]++;
     },
     [kvm]
   );
@@ -198,11 +210,16 @@ export const Console: React.FC = () => {
     };
   }, [kvm, serial]);
 
-  const [filteredLogs, logTypesCount] = filterLogAndCount(
-    kvm.logs,
-    kvm.search,
-    kvm.selectedType
-  );
+  let filteredLogs = kvm.logs;
+  let filteredLogTypesCount = kvm.logTypesCount;
+
+  const isFiltering = !!(kvm.search || kvm.selectedType);
+
+  if (isFiltering) {
+    const filter = filterLogAndCount(kvm.logs, kvm.search, kvm.selectedType);
+    filteredLogs = filter[0];
+    filteredLogTypesCount = filter[1];
+  }
 
   const pages = Math.max(
     Math.ceil(filteredLogs.length / LOG_PAGE_SIZE),
@@ -365,8 +382,6 @@ export const Console: React.FC = () => {
   // console.log(`${kvm.page} / ${pages}`);
   // useRenderCount((count) => console.log(`UI Render: ${count}`));
 
-  const isFiltering = kvm.search || kvm.selectedType;
-
   return (
     <ConsoleLayout
       search={kvm.search}
@@ -376,7 +391,7 @@ export const Console: React.FC = () => {
       baud={kvm.baud}
       deviceInfo={kvm.isConnected ? "Connected" : ""}
       logsContainerRef={scrollRef}
-      logTypesCount={logTypesCount}
+      logTypesCount={filteredLogTypesCount}
       showScrollTopButton={kvm.showScrollTopButton}
       showScrollDownButton={kvm.showScrollDownButton}
       onSearch={handleSearch}

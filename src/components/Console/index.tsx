@@ -76,7 +76,7 @@ export const Console: React.FC = () => {
   const pushNewLogLine = useCallback(
     (log: ILog) => {
       kvm.logChunk = null;
-      kvm.logs = [...kvm.logs, log];
+      kvm.logs.push(log);
     },
     [kvm]
   );
@@ -198,9 +198,10 @@ export const Console: React.FC = () => {
     };
   }, [kvm, serial]);
 
-  const [filteredLogs, logTypesCount] = useMemo(
-    () => filterLogAndCount(kvm.logs, kvm.search, kvm.selectedType),
-    [kvm.logs, kvm.search, kvm.selectedType]
+  const [filteredLogs, logTypesCount] = filterLogAndCount(
+    kvm.logs,
+    kvm.search,
+    kvm.selectedType
   );
 
   const pages = Math.max(
@@ -361,11 +362,10 @@ export const Console: React.FC = () => {
 
   detectUserScroll.current = false;
 
-  console.log(`${kvm.page} / ${pages}`);
+  // console.log(`${kvm.page} / ${pages}`);
+  // useRenderCount((count) => console.log(`UI Render: ${count}`));
 
   const isFiltering = kvm.search || kvm.selectedType;
-
-  useRenderCount((count) => console.log(`UI Render: ${count}`));
 
   return (
     <ConsoleLayout

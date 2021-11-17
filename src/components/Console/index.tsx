@@ -7,11 +7,13 @@ import React, {
 } from "react";
 import { ConsoleLayout } from "../../components/Console/components/ConsoleLayout";
 import { DEFAULT_BAUD_RATE } from "../../config/baud";
+import { useRenderCount } from "../../hooks/RenderCount";
 import { useScrollDirection } from "../../hooks/ScrollDirection";
 import { useScrollThreshold } from "../../hooks/ScrollThreshold";
 import { ILog, ILogCountByType, LogType } from "../../interfaces/Log/ILog";
 import { KeyValueManager } from "../../util/KeyValueManager";
 import { filterLogAndCount } from "./util/filterLogAndCount";
+import { getPageSlice } from "./util/getPageSlice";
 import { makeLog } from "./util/makeLog";
 import {
   SerialConnection,
@@ -216,9 +218,14 @@ export const Console: React.FC = () => {
   const isFiltering = !!(kvm.search || kvm.selectedType);
 
   if (isFiltering) {
-    const filter = filterLogAndCount(kvm.logs, kvm.search, kvm.selectedType);
-    filteredLogs = filter[0];
-    filteredLogTypesCount = filter[1];
+    const { filtered, count } = filterLogAndCount(
+      kvm.logs,
+      kvm.search,
+      kvm.selectedType
+    );
+
+    filteredLogs = filtered;
+    filteredLogTypesCount = count;
   }
 
   const pages = Math.max(
@@ -230,14 +237,11 @@ export const Console: React.FC = () => {
 
   if (kvm.autoScroll) kvm.page = lastPage;
 
-  const logsSlice = useMemo(() => {
-    const pageStart = (kvm.page - WINDOW_PAGES_SIZE) * LOG_PAGE_SIZE;
-    const pageEnd = pageStart + WINDOW_PAGES_SIZE * LOG_PAGE_SIZE;
-
-    const logsSlice = filteredLogs.slice(pageStart, pageEnd);
-
-    return logsSlice;
-  }, [kvm.page, filteredLogs]);
+  const logsSlice = getPageSlice(filteredLogs, {
+    page: kvm.page,
+    pages: WINDOW_PAGES_SIZE,
+    pageSize: LOG_PAGE_SIZE,
+  });
 
   useEffect(() => {
     const handleAutoScrollChange = () => {
@@ -350,18 +354,12 @@ export const Console: React.FC = () => {
   }, [kvm]);
 
   const handleSearch = useCallback(
-    (value: string) => {
-      kvm.search = value;
-      setRenderId((id) => id + 1);
-    },
+    (value: string) => (kvm.search = value),
     [kvm]
   );
 
   const handleSelectedType = useCallback(
-    (value: LogType | undefined) => {
-      kvm.selectedType = value;
-      setRenderId((id) => id + 1);
-    },
+    (value: LogType | undefined) => (kvm.selectedType = value),
     [kvm]
   );
 
@@ -379,13 +377,11 @@ export const Console: React.FC = () => {
 
   detectUserScroll.current = false;
 
-  // console.log(`${kvm.page} / ${pages}`);
-  // useRenderCount((count) => console.log(`UI Render: ${count}`));
+  console.log(`${kvm.page} / ${pages}`);
+  useRenderCount((count) => console.log(`UI Render: ${count}`));
 
   return (
     <ConsoleLayout
-      search={kvm.search}
-      selectedType={kvm.selectedType}
       logs={logsSlice}
       logChunk={isFiltering ? null : kvm.logChunk}
       baud={kvm.baud}

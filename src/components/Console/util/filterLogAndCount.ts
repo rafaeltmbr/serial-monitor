@@ -10,7 +10,12 @@ type FuncType = (
   logs: ILog[],
   search: string,
   type?: LogType
-) => [ILog[], ILogCountByType];
+) => IFilteredAndCount;
+
+interface IFilteredAndCount {
+  filtered: ILog[];
+  count: ILogCountByType;
+}
 
 export const filterLogAndCount: FuncType = (logs, search, type) => {
   const count = {} as ILogCountByType;
@@ -27,5 +32,5 @@ export const filterLogAndCount: FuncType = (logs, search, type) => {
     return !type || log.type === type;
   });
 
-  return [filtered, count];
+  return { filtered, count };
 };

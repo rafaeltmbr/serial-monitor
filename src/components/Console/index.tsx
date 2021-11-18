@@ -19,7 +19,7 @@ import {
   SerialConnectionStatus,
 } from "./util/SerialConnection";
 
-const LOG_PAGE_SIZE = 30; // 50 logs per page
+const LOG_PAGE_SIZE = 40; // 40 logs per page
 const WINDOW_PAGES_SIZE = 3; // 3 * LOG_PAGE_SIZE
 const RENDER_REFRESH_INTERVAL = 200; // 5x per second
 const MAX_CHARACTERS_BY_FILTER = 100000;
@@ -283,7 +283,7 @@ export const Console: React.FC = () => {
     },
     [],
     scrollRef,
-    { offset: { top: { min: 500 } } }
+    { offset: { top: { min: 1000 } } }
   );
 
   useScrollThreshold(
@@ -293,7 +293,7 @@ export const Console: React.FC = () => {
     },
     [],
     scrollRef,
-    { offset: { top: { min: 100 } } }
+    { offset: { top: { min: 200 } } }
   );
 
   useScrollThreshold(
@@ -303,7 +303,7 @@ export const Console: React.FC = () => {
     },
     [pages],
     scrollRef,
-    { offset: { bottom: { min: 500 } } }
+    { offset: { bottom: { min: 1000 } } }
   );
 
   useScrollThreshold(
@@ -313,7 +313,7 @@ export const Console: React.FC = () => {
     },
     [pages],
     scrollRef,
-    { offset: { bottom: { min: 100 } } }
+    { offset: { bottom: { min: 200 } } }
   );
 
   useScrollThreshold(
@@ -341,11 +341,11 @@ export const Console: React.FC = () => {
 
   useScrollThreshold(
     () => {
-      kvm.showScrollTopButton = false;
+      if (kvm.page === WINDOW_PAGES_SIZE) kvm.showScrollTopButton = false;
     },
     [],
     scrollRef,
-    { offset: { top: { min: 50 } } }
+    { offset: { top: { min: 200 } } }
   );
 
   useScrollDirection(
@@ -397,8 +397,6 @@ export const Console: React.FC = () => {
   }, [kvm, renderId]);
 
   detectUserScroll.current = false;
-
-  //console.log(`${kvm.page} / ${pages}`);
 
   return (
     <ConsoleLayout

@@ -12,7 +12,7 @@ export const Theme: React.FC = ({ children }) => {
 
   return (
     <ThemeContext.Provider value={switchMode}>
-      <ThemeProvider theme={theme}>{children}</ThemeProvider>
+      <ThemeProvider theme={theme}>{children as any}</ThemeProvider>
     </ThemeContext.Provider>
   );
 };

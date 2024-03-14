@@ -17,6 +17,7 @@ import {
   LogContainer,
   LogsAndScrollButtonsContainer,
 } from "./styles";
+import { SendMessage } from "../SendMessage";
 
 interface IProps {
   logTypesCount: ILogCountByType;
@@ -27,6 +28,7 @@ interface IProps {
   logsContainerRef?: MutableRefObject<Element | undefined>;
   showScrollTopButton: boolean;
   showScrollDownButton: boolean;
+  sendMessage: string;
   onSearch: (search: string) => void;
   onSelectedType: (selectedType?: LogType) => void;
   onClearLogs: () => void;
@@ -34,6 +36,8 @@ interface IProps {
   onConnectionRequestChange: (status: boolean) => void;
   onScrollTopClick: () => void;
   onScrollDownClick: () => void;
+  onMessageChange: (message: string) => void;
+  onSendMessage: (message: string) => void;
 }
 
 export const ConsoleLayout: React.FC<IProps> = ({
@@ -45,6 +49,7 @@ export const ConsoleLayout: React.FC<IProps> = ({
   logTypesCount,
   showScrollTopButton,
   showScrollDownButton,
+  sendMessage,
   onSearch,
   onSelectedType,
   onClearLogs,
@@ -52,6 +57,8 @@ export const ConsoleLayout: React.FC<IProps> = ({
   onConnectionRequestChange,
   onScrollTopClick,
   onScrollDownClick,
+  onMessageChange,
+  onSendMessage,
 }) => {
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<LogType | undefined>();
@@ -129,6 +136,13 @@ export const ConsoleLayout: React.FC<IProps> = ({
             onScrollDown={onScrollDownClick}
           />
         </LogsAndScrollButtonsContainer>
+      )}
+      {!!deviceInfo && (
+        <SendMessage
+          message={sendMessage}
+          onMessageChange={onMessageChange}
+          onSend={onSendMessage}
+        />
       )}
     </Container>
   );

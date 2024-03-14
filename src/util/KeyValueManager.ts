@@ -19,7 +19,7 @@ class _KeyValueManager<T> extends EventEmitter {
 
     this.data = deepCopy(data);
 
-    Object.keys(this.data).forEach((k) => {
+    Object.keys(this.data as object).forEach((k) => {
       const key = k as keyof T;
 
       if (k === ALL_KEYS_SYMBOL)

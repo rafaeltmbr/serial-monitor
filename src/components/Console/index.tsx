@@ -57,6 +57,7 @@ export const Console: React.FC = () => {
   const scrollRef = useRef<Element>();
   const detectUserScroll = useRef(false);
   const [renderId, setRenderId] = useState(0);
+  const [sendMessage, setSendMessage] = useState("");
 
   useEffect(() => {
     const descriptor = setInterval(() => {
@@ -99,6 +100,11 @@ export const Console: React.FC = () => {
 
   const handleSerialLine = useCallback(
     (line: string) => pushNewLogLine(makeLog("log", line)),
+    [pushNewLogLine]
+  );
+
+  const handleSerialSend = useCallback(
+    (line: string) => pushNewLogLine(makeLog("send", line)),
     [pushNewLogLine]
   );
 
@@ -163,12 +169,14 @@ export const Console: React.FC = () => {
   useEffect(() => {
     serial.addListener("chunk", handleSerialChunk);
     serial.addListener("line", handleSerialLine);
+    serial.addListener("send", handleSerialSend);
     serial.addListener("connect", handleSerialConnect);
     serial.addListener("disconnect", handleSerialDisconnect);
 
     return () => {
       serial.removeListener("chunk", handleSerialChunk);
       serial.removeListener("line", handleSerialLine);
+      serial.removeListener("send", handleSerialSend);
       serial.removeListener("connect", handleSerialConnect);
       serial.removeListener("disconnect", handleSerialDisconnect);
     };
@@ -389,6 +397,14 @@ export const Console: React.FC = () => {
     [kvm]
   );
 
+  const handleSendMessage = useCallback(
+    (message: string) => {
+      setSendMessage("");
+      serial.sendMessage(message);
+    },
+    [serial]
+  );
+
   useEffect(() => {
     detectUserScroll.current = true;
 
@@ -408,6 +424,7 @@ export const Console: React.FC = () => {
       logTypesCount={filteredLogTypesCount}
       showScrollTopButton={kvm.showScrollTopButton}
       showScrollDownButton={kvm.showScrollDownButton}
+      sendMessage={sendMessage}
       onSearch={handleSearch}
       onSelectedType={handleSelectedType}
       onClearLogs={handleClearLogs}
@@ -415,6 +432,8 @@ export const Console: React.FC = () => {
       onConnectionRequestChange={handleReadyToConnect}
       onScrollTopClick={handleScrollTopClick}
       onScrollDownClick={handleScrollDownClick}
+      onMessageChange={setSendMessage}
+      onSendMessage={handleSendMessage}
     />
   );
 };

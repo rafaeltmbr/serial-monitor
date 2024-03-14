@@ -8,13 +8,14 @@ export const serialConnectionStatus = <const>[
   "disconnecting",
 ];
 
-export type SerialConnectionStatus = typeof serialConnectionStatus[number];
+export type SerialConnectionStatus = (typeof serialConnectionStatus)[number];
 
 const DEFAULT_MAXIMUM_CHUNK_LENGTH = 256;
 export class SerialConnection extends EventEmitter {
   private maxChunkLength: number;
   private port: SerialPort | null;
   private reader: ReadableStreamDefaultReader<Uint8Array> | null;
+  private writer: WritableStreamDefaultWriter<Uint8Array> | null;
   private status: SerialConnectionStatus;
 
   constructor(maxChunkLength?: number) {
@@ -23,6 +24,7 @@ export class SerialConnection extends EventEmitter {
     this.maxChunkLength = maxChunkLength || DEFAULT_MAXIMUM_CHUNK_LENGTH;
     this.port = null;
     this.reader = null;
+    this.writer = null;
     this.status = "disconnected";
   }
 
@@ -40,10 +42,31 @@ export class SerialConnection extends EventEmitter {
     await this.stopReading(true);
   }
 
+  public sendMessage(message: string) {
+    try {
+      if (this.status !== "opened" || !this.port || !this.port.writable) return;
+
+      if (!this.writer) this.writer = this.port.writable.getWriter();
+
+      this.emit("send", message);
+
+      this.writer.write(Buffer.from(message));
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e.message : String(e);
+      console.error("Write error:", error);
+    }
+  }
+
   private resetInternalState() {
     this.port = null;
     this.reader = null;
+    this.writer = null;
     this.status = "disconnected";
+  }
+
+  private stopWriting() {
+    this.writer?.releaseLock();
+    this.writer = null;
   }
 
   private async stopReading(disconnect?: boolean) {
@@ -63,6 +86,7 @@ export class SerialConnection extends EventEmitter {
   private async closeSerialPort() {
     if (this.status === "disconnected" || !this.port) return;
 
+    this.stopWriting();
     await this.port?.close();
     this.resetInternalState();
   }
@@ -70,6 +94,7 @@ export class SerialConnection extends EventEmitter {
   private async createOrResetConnection() {
     if (this.status === "opened") {
       await this.stopReading();
+      this.stopWriting();
       await this.port?.close();
       this.status = "connected";
 

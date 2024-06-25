@@ -16,7 +16,7 @@ export const SendMessage: React.FC<IProps> = ({
   ...rest
 }) => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") onSend(`${message}\n`);
+    if (e.key === "Enter") onSend(`${message}\r\n`);
   };
 
   return (
